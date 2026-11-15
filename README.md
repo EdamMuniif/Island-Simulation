@@ -41,3 +41,28 @@ Four lamps: nominal 40 W maximum, 4 W minimum per lamp, plus 2 W shared control 
 - Calibrate road-user detection and energy assumptions before reporting engineering findings
 
 The external `CRXLauncher` and `static-lib.com` scripts were **not** included.
+
+## Reference-traced island layout (experimental update)
+
+The shoreline, inset vegetation boundary, offshore reef, village roads, harbour
+entrance, quay and breakwaters have been **visually re-traced** from three
+November 2026 satellite screenshots supplied for this project. Reference
+landmarks now include the hill, jetty, fishing point, cafe, school, Xefex,
+Octopus Club, football/futsal grounds, agricultural area and southern point.
+
+- No Google satellite images are embedded, copied or distributed.
+- Geometry was digitized **by eye** and is **not surveyed/georeferenced**.
+  Pixel-to-map transforms are approximate and may be refined from GIS data.
+- The two traffic paths, 13 ambient vehicles, 16 ambient pedestrians, four
+  prototype lamp positions, PIR detection logic and energy assumptions remain
+  unchanged. Drawn residential roads are visual roads rather than a fully
+  traffic-routable graph.
+- The prior six-PIR-sensor pole and external controller box design is **not yet
+  implemented** in this code update; it remains separate follow-up work.
+- Automated syntax, module, coordinate, topology and controller tests pass.
+  Full WebGL/Canvas browser appearance and mobile behavior are **unverified**
+  because automated Chromium rendering did not complete in the test environment.
+
+Run \`node verify.mjs\`, then serve locally using \`python3 -m http.server 8000\`
+and inspect the viewport, harbour, woodland, lighting and junction presets in
+a real browser before merging to the public website.
