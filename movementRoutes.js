@@ -29,20 +29,35 @@ export function streetLoop(points,offset=1.05){
     distance+=d;
   }
   if(!seg.length)throw Error('Degenerate street route');
+  // Shared vertex normals keep offset paths continuous at every road bend;
+  // sampling independent segment normals would make models jump sideways.
+  const normals=seg.map(s=>[-s.dz,s.dx]);
+  const vertexNormals=Array.from({length:seg.length+1},(_,i)=>{
+    if(i===0)return normals[0];
+    if(i===seg.length)return normals.at(-1);
+    const x=normals[i-1][0]+normals[i][0],z=normals[i-1][1]+normals[i][1];
+    const mag=Math.hypot(x,z);
+    return mag>.1?[x/mag,z/mag]:normals[i];
+  });
   const turn=Math.PI*offset,length=2*(distance+turn);
   const first=seg[0],end=seg.at(-1);
-  function sample(d){
+  function sample(d,side){
     d=clamp(d,0,distance);
-    const s=seg.find(v=>d<=v.end)||end;
+    const index=seg.findIndex(v=>d<=v.end);
+    const i=index<0?seg.length-1:index,s=seg[i];
     const u=clamp((d-s.start)/(s.end-s.start),0,1);
-    return {x:s.a[0]+(s.b[0]-s.a[0])*u,z:s.a[1]+(s.b[1]-s.a[1])*u,dx:s.dx,dz:s.dz};
+    const n0=vertexNormals[i],n1=vertexNormals[i+1];
+    const ox=offset*side,delta=s.end-s.start;
+    const dx=(s.b[0]-s.a[0]+ox*(n1[0]-n0[0]))/delta;
+    const dz=(s.b[1]-s.a[1]+ox*(n1[1]-n0[1]))/delta;
+    const mag=Math.hypot(dx,dz);
+    return {x:s.a[0]+(s.b[0]-s.a[0])*u+ox*(n0[0]+(n1[0]-n0[0])*u),
+      z:s.a[1]+(s.b[1]-s.a[1])*u+ox*(n0[1]+(n1[1]-n0[1])*u),
+      dx:dx/mag,dz:dz/mag};
   }
   function pose(meters){
     let s=((meters%length)+length)%length;
-    if(s<distance){
-      const a=sample(s);
-      return {x:a.x-a.dz*offset,z:a.z+a.dx*offset,dx:a.dx,dz:a.dz};
-    }
+    if(s<distance)return sample(s,1);
     s-=distance;
     if(s<turn){
       const t=s/offset,center=end.b;
@@ -53,8 +68,8 @@ export function streetLoop(points,offset=1.05){
     }
     s-=turn;
     if(s<distance){
-      const a=sample(distance-s);
-      return {x:a.x+a.dz*offset,z:a.z-a.dx*offset,dx:-a.dx,dz:-a.dz};
+      const a=sample(distance-s,-1);
+      return {...a,dx:-a.dx,dz:-a.dz};
     }
     s-=distance;
     const t=s/offset,center=first.a;
