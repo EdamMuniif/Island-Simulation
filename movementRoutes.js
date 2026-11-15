@@ -82,7 +82,7 @@ export function streetLoop(points,offset=1.05){
 }
 
 /** Crossing across a road at a chosen section of its actual centerline. */
-export function roadCrossing(points,segment,part=.5,halfWidth=4.7){
+export function roadCrossing(points,segment,part=.5,halfWidth=3.2){
   if(segment<0||segment>=points.length-1)throw Error('Invalid crossing segment');
   const a=points[segment],b=points[segment+1];
   const dx=b[0]-a[0],dz=b[1]-a[1],d=Math.hypot(dx,dz);
