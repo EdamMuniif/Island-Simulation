@@ -1,0 +1,11 @@
+{
+  "name": "r-angolhitheemu-3d-simulation",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local static 3D island and adaptive LED street-lighting simulation",
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "test": "node verify.mjs"
+  }
+}
