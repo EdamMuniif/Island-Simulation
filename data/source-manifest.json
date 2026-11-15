@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "3.1",
+  "project": "R. Angolhitheemu 3D Island Simulation",
+  "dataPolicy": "No invented georeferenced polygons; GIS imports require source attribution and validation.",
+  "projectCoordinateSystem": "EPSG:32643",
+  "originReference": "PSM-0118",
+  "layers": {
+    "islandBoundary": {
+      "status": "pending-source-import",
+      "plannedFile": "data/island.geojson",
+      "source": "OneMap island_20240509 FeatureServer/0",
+      "crs": "EPSG:4326",
+      "license": "https://readme.onemap.mv/pdf/Data%20Usage%20License.pdf"
+    },
+    "roads": {
+      "status": "unverified",
+      "plannedFile": "data/roads.geojson",
+      "source": null
+    },
+    "buildingFootprints": {
+      "status": "unverified",
+      "plannedFile": "data/buildings.geojson",
+      "source": null
+    },
+    "landCover": {
+      "status": "unverified",
+      "plannedFile": "data/landcover.geojson",
+      "source": null
+    },
+    "harbourStructures": {
+      "status": "unverified",
+      "plannedFile": "data/harbour.geojson",
+      "source": null
+    }
+  },
+  "legacyRendering": "map.js remains an uncalibrated V2 display map until GIS boundary is imported and reviewed",
+  "automatedReplacementOfLegacyMap": false
+}

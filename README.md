@@ -66,3 +66,19 @@ Octopus Club, football/futsal grounds, agricultural area and southern point.
 Run \`node verify.mjs\`, then serve locally using \`python3 -m http.server 8000\`
 and inspect the viewport, harbour, woodland, lighting and junction presets in
 a real browser before merging to the public website.
+
+## V3.1 — Geographic data foundation (in review)
+
+An independent **WGS84 → UTM 43N** reference frame, a source-checked Maldives
+OneMap boundary importer, a survey-point origin, and geographic validation tests
+are provided in this branch. The legacy V2 scene is **not replaced** yet.
+
+See [V3.1 geographic foundation documentation](docs/V3_1_GEODATA.md).
+
+Run `npm test` for regression and GIS tests. To request the official polygon
+from OneMap (on a machine with network access), run
+`node tools/import-onemap.mjs --dry-run` followed by
+`node tools/import-onemap.mjs` once the correct island record is verified.
+
+**Data status:** the official polygon has not yet been imported or visually
+approved. No real street or building locations are claimed for the current map.

@@ -1,0 +1,34 @@
+name: V3.1 Geographic Foundation Checks
+on:
+  pull_request:
+    paths:
+      - 'geo/**'
+      - 'tools/import-onemap.mjs'
+      - 'tests/**'
+      - 'data/**'
+      - 'package.json'
+      - 'verify.mjs'
+      - '.github/workflows/v3-geodata-checks.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check
+        run: |
+          node --check geo/coordinates.js
+          node --check geo/validate.js
+          node --check tools/import-onemap.mjs
+          node --check tests/geo.test.mjs
+      - name: Existing simulation regression and V3.1 GIS tests
+        run: npm test
