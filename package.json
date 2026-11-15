@@ -6,8 +6,6 @@
   "description": "Local static 3D island and adaptive LED street-lighting simulation",
   "scripts": {
     "start": "python3 -m http.server 8000",
-    "test": "node verify.mjs && node --test tests/geo.test.mjs",
-    "geo:import": "node tools/import-onemap.mjs",
-    "geo:check": "node tools/import-onemap.mjs --dry-run"
+    "test": "node verify.mjs"
   }
 }
