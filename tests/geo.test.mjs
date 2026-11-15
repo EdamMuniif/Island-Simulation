@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {existsSync,readFileSync} from 'node:fs';
 import {CRS, ORIGIN, wgs84ToUtm43,utmToWorld,wgs84ToWorld,worldToUtm} from '../geo/coordinates.js';
 import {signedArea,closedRing,pointInRing,assertSimpleRing,esriRingsToGeoJSON,validateIslandBoundary} from '../geo/validate.js';
 
@@ -65,4 +66,15 @@ test('Invalid and unclosed data is rejected, not silently repaired',()=>{
       [[74,6],[74.01,6],[74.01,6.01],[74,6]]
     ]}
   }),/reference vicinity/);
+});
+
+
+test('Downloaded official GeoJSON passes the same boundary QA when present',
+  {skip: !existsSync('data/island.geojson')},()=>{
+  const raw=JSON.parse(readFileSync('data/island.geojson','utf8'));
+  assert.equal(raw.type,'FeatureCollection');
+  assert.equal(raw.features.length,1);
+  const qa=validateIslandBoundary(raw.features[0]);
+  assert.ok(qa.vertexCount>=3);
+  assert.ok(qa.areaM2>1000);
 });
