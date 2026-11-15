@@ -1,6 +1,6 @@
 import * as T from './three.module.js';
 import {softwareRenderer} from './software.js';
-import {outline,inland,reefRings,mapPoint,grid,streets,ROAD_CLASSES,ROAD_PROFILES,harbourArm,harbourQuay,landmarkSites,inside,axis,junction,shuttle,roadCoordinates,SCALE} from './map.js';
+import {outline,inland,reefRings,mapPoint,grid,streets,harbourArm,harbourQuay,landmarkSites,inside,axis,junction,shuttle,roadCoordinates,SCALE} from './map.js';
 import {LAMP_POSITIONS,ZONE_WIDTH,DEFAULTS,makeController,testTrafficAt} from './adaptive.js';
 
 const world = document.querySelector('#world');
@@ -156,25 +156,17 @@ const [jx,jz]=junction;
 const main=shuttle([-111,0],[204,0],1.68);
 const sideRoad=shuttle([0,-123],[0,218],1.45);
 const roads=[];
+for(const line of streets)for(let i=1;i<line.length;i++){
+  roads.push([line[i-1],line[i]]);
+}
 function circle(x,z,r,y,color,level){
   const m=mesh(cylGeo,color,x,y,z,r,.025,r,scene,false);m.userData.surface=level;
   return m;
 }
-// Draw each road with its own village-road width, using small caps only at
-// its actual vertices (rather than large duplicated circles per segment).
-const roadBaseColor='#b8af97',roadSurfaceColor='#69706c';
-for(const [index,line] of streets.entries()){
-  const style=ROAD_PROFILES[ROAD_CLASSES[index]];
-  for(let i=1;i<line.length;i++){
-    const a=line[i-1],b=line[i];
-    roads.push([a,b]); // Keep the original roadGap / building-clearance inputs.
-    strip(roadBaseColor,a,b,style.base,.426,.045,-3);
-    strip(roadSurfaceColor,a,b,style.surface,.461,.034,-2);
-  }
-  for(const [x,z] of line){
-    circle(x,z,style.base/2,.428,roadBaseColor,-3);
-    circle(x,z,style.surface/2,.468,roadSurfaceColor,-2);
-  }
+for(const [a,b] of roads){
+  strip('#c4ba9f',a,b,8.0,.426,.045,-3);
+  strip('#505652',a,b,6.5,.461,.034,-2);
+  for(const [x,z] of [a,b])circle(x,z,3.25,.46,'#505652',-2);
 }
 for(let u=-104;u<200;u+=11){
   if(Math.min(...[-96,-49,0,49,101,145].map(x=>Math.abs(u-x)))<9)continue;
@@ -185,10 +177,9 @@ for(const [u,w,horizontal] of [[-18,2.8,true],[12,-2.8,true],[-2.4,-13,false],[2
   const b=horizontal?grid(u,w+2.25):grid(u+2.25,w);
   strip('#e5ddc8',a,b,.15,.492,.013,-1);
 }
-// Shorter zebra span fits the narrower village main road.
-for(let i=0;i<7;i++){
-  const w=-3.12+i*1.04;
-  strip('#ece4d2',grid(-15,w),grid(-11,w),.34,.495,.014,-1);
+for(let i=0;i<8;i++){
+  const w=-4.8+i*1.36;
+  strip('#ece4d2',grid(-15,w),grid(-11,w),.42,.495,.014,-1);
 }
 const distanceTo=(x,z,a,b)=>{
   const dx=b[0]-a[0],dz=b[1]-a[1];
