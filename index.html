@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+        <meta name="theme-color" content="#101d20">
+        <meta name="description" content="Explore a living 3D island harbour. Watch traffic, sea and streetlights change through a full day.">
+        <title>R. Angolhitheemu</title>
+        <link rel="stylesheet" href="./style.css">
+    </head>
+    <body>
+        <header class="top">
+            <div class="brand">
+                <div class="mark" aria-hidden="true">≈</div>
+                <div>
+                    <h1>R. Angolhitheemu</h1>
+                    <p>Raa Atoll · Adaptive LED street lighting lab</p>
+                </div>
+            </div>
+            <div class="live">
+                <i></i>
+                <span id="runState">Simulation running</span>
+            </div>
+        </header>
+        <main>
+            <section class="viewport" aria-label="Interactive 3D island">
+                <div id="world"></div>
+                <div id="landmarks" aria-label="Island landmarks"></div>
+                <div id="lampMarkers" aria-hidden="true" hidden></div>
+                <div class="sceneTools">
+                    <div class="viewTabs" role="group" aria-label="Camera views">
+                        <button data-view="overview" aria-pressed="true">Island</button>
+                        <button data-view="harbour" aria-pressed="false">Harbour</button>
+                        <button data-view="junction" aria-pressed="false">Junction</button>
+                        <button data-view="lighting" aria-pressed="false">Lighting lab</button>
+                    </div>
+                    <div class="mapTools">
+                        <button id="full" class="expand" type="button" aria-label="Expand map" aria-pressed="false" title="Expand map">⛶</button>
+                        <details id="mapHelp" class="mapHelp">
+                            <summary aria-label="Map controls help" title="Map controls help">?</summary>
+                            <div>
+                                <b>Explore the island</b>
+                                <p>Drag to move. Pinch or scroll over a spot to zoom there. Double-tap or double-click a place to move in closer.</p>
+                                <p>Choose Rotate to tilt or turn the view. With the map focused, use the arrow keys to move, Shift + arrows to rotate, + or − to zoom, and Home to show the whole island.</p>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+                <div class="mapNav" role="group" aria-label="Map navigation">
+                    <div class="mapMode">
+                        <button id="moveMap" type="button" aria-pressed="true">Move</button>
+                        <button id="rotateMap" type="button" aria-pressed="false">Rotate</button>
+                    </div>
+                    <div class="zoomButtons">
+                        <button id="zoomOut" type="button" aria-label="Zoom out" title="Zoom out">−</button>
+                        <button id="zoomIn" type="button" aria-label="Zoom in" title="Zoom in">+</button>
+                        <button id="resetMap" type="button" aria-label="Show whole island" title="Show whole island">↺</button>
+                    </div>
+                </div>
+                <details class="statusCard" open>
+                    <summary class="statusTitle">
+                        <span class="signalIcon" aria-hidden="true">
+                            <i></i>
+                            <i></i>
+                            <i></i>
+                        </span>
+                        Village junction
+                    </summary>
+                    <div class="signalRow">
+                        <span>Village main road</span>
+                        <b id="mainSignal"></b>
+                    </div>
+                    <div class="signalRow">
+                        <span>Cross street</span>
+                        <b id="sideSignal"></b>
+                    </div>
+                    <div class="signalRow">
+                        <span>Pedestrian crossing</span>
+                        <b id="walkSignal"></b>
+                    </div>
+                </details>
+                <div class="mapNote">Approximate map · Simulated traffic signals</div>
+                <div id="testStatus" class="test-status" hidden>
+                    <span>FIXED NIGHT TEST · 21:00</span>
+                    <strong id="testStage">Road clear</strong>
+                </div>
+            </section>
+            <section class="controls" aria-label="Simulation controls">
+                <div class="timeRead">
+                    <span class="eyebrow">ISLAND TIME · MVT</span>
+                    <output id="clock" for="time">16:30</output>
+                    <span id="period">Afternoon</span>
+                </div>
+                <div class="timeline">
+                    <div class="timelineHeading">
+                        <label for="time">Day–night cycle</label>
+                        <span id="lamps" class="lampState">
+                            <i></i>
+                            <span>Streetlights off</span>
+                        </span>
+                    </div>
+                    <input id="time" type="range" min="0" max="1439" value="990" aria-label="Island time in minutes after midnight">
+                    <div class="ticks" aria-hidden="true">
+                        <span>00:00</span>
+                        <span>06:00</span>
+                        <span>12:00</span>
+                        <span>18:00</span>
+                        <span>24:00</span>
+                    </div>
+                </div>
+                <div class="controlTools">
+                    <div class="playRow">
+                        <button id="play" aria-label="Pause simulation" title="Pause simulation">Ⅱ</button>
+                        <select id="speed" aria-label="Day-night cycle speed">
+                            <option value="0.5">0.5×</option>
+                            <option selected value="1">1×</option>
+                            <option value="4">4×</option>
+                            <option value="12">12×</option>
+                        </select>
+                    </div>
+                    <div class="presets">
+                        <button data-time="345">Dawn</button>
+                        <button data-time="720">Noon</button>
+                        <button data-time="1065">Dusk</button>
+                        <button data-time="1260">Night</button>
+                    </div>
+                </div>
+            </section>
+            <section id="lightingLab" class="lab" aria-labelledby="labTitle">
+                <div class="lab-head">
+                    <div>
+                        <h2 id="labTitle">Adaptive LED street lighting</h2>
+                        <p>Four prototype lamps on the west approach to the village junction. At night, detection brightens the local lamp and the next lamp in the direction of travel. The night test alternates individual road users with clear-road periods.</p>
+                    </div>
+                    <button id="nightTest" class="lab-primary" type="button" aria-pressed="false">Start night test</button>
+                </div>
+                <div class="lab-body">
+                    <div class="lab-control">
+                        <h3>Prototype settings</h3>
+                        <label class="lab-mode">
+                            Lighting view 
+                            <select id="lightMode">
+                                <option value="adaptive">Adaptive</option>
+                                <option value="baseline">Full brightness</option>
+                            </select>
+                        </label>
+                        <label class="lab-range" for="dimLevel">
+                            Idle brightness <output id="dimValue">30%</output>
+                        </label>
+                        <input id="dimLevel" type="range" min="10" max="70" step="5" value="30">
+                        <label class="lab-range" for="detectRange">
+                            Detection reach <output id="rangeValue">7 m</output>
+                        </label>
+                        <input id="detectRange" type="range" min="3" max="12" step="1" value="7">
+                        <label class="lab-range" for="holdTime">
+                            Hold after detection <output id="holdValue">4 s</output>
+                        </label>
+                        <input id="holdTime" type="range" min="0" max="12" step="1" value="4">
+                        <label class="lab-check">
+                            <input id="zonesOn" type="checkbox" checked>Show detection zones in Lighting lab view
+                        </label>
+                    </div>
+                    <div class="lab-results">
+                        <div class="lab-result-title">
+                            <h3>Simulated energy</h3>
+                            <button id="resetEnergy" class="lab-reset" type="button">Reset comparison</button>
+                        </div>
+                        <div class="energy-cards">
+                            <div>
+                                <span>Full brightness</span>
+                                <strong id="baselineEnergy">0.00 Wh</strong>
+                            </div>
+                            <div>
+                                <span>Adaptive + controls</span>
+                                <strong id="adaptiveEnergy">0.00 Wh</strong>
+                            </div>
+                            <div>
+                                <span id="savingLabel">Estimated savings</span>
+                                <strong id="estimatedSavings">—</strong>
+                            </div>
+                        </div>
+                        <p class="energy-meta">
+                            <span id="sampleTime">0.0 s</span> of simulated nighttime operation. Both modes use the same traffic and test interval.
+                        </p>
+                        <div id="lampCards" class="lamp-cards" aria-label="Prototype lamp states"></div>
+                        <details>
+                            <summary>Simulation assumptions</summary>
+                            <p>Virtual sensors use road-user positions. The night test uses a repeating schedule of walkers, cyclists, motorcyclists, cars, and runners. The model assumes 40 W per lamp at full output, a 4 W driver floor plus 36 W proportional to the dimming command, and 2 W for shared adaptive sensors and control. The comparison counts elapsed simulation seconds during the scheduled lighting window. Changes to prototype settings reset the comparison.</p>
+                            <p>These are demonstration estimates. Detection reliability, response time, road illuminance in lux, and actual energy use require physical testing.</p>
+                        </details>
+                    </div>
+                </div>
+            </section>
+        </main>
+        <script type="module" src="./island.js"></script>
+    </body>
+</html>
