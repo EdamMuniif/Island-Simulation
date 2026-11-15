@@ -1,6 +1,6 @@
 import * as T from './three.module.js';
 import {softwareRenderer} from './software.js';
-import {outline,inland,reefRings,mapPoint,grid,streets,harbourArm,inside,axis,junction,shuttle,roadCoordinates,SCALE} from './map.js';
+import {outline,inland,reefRings,mapPoint,grid,streets,harbourArm,harbourQuay,landmarkSites,inside,axis,junction,shuttle,roadCoordinates,SCALE} from './map.js';
 import {LAMP_POSITIONS,ZONE_WIDTH,DEFAULTS,makeController,testTrafficAt} from './adaptive.js';
 
 const world = document.querySelector('#world');
@@ -187,7 +187,7 @@ const distanceTo=(x,z,a,b)=>{
   return Math.hypot(x-a[0]-dx*t,z-a[1]-dz*t);
 };
 const roadGap=(x,z)=>Math.min(...roads.map(([a,b])=>distanceTo(x,z,a,b)));
-const harbourRefs=[[259,319],[291,312],[332,306],[377,315],[419,332],[465,354],[495,373]];
+
 for(const arm of harbourArm){
   for(let i=1;i<arm.length;i++){
     const a=arm[i-1],b=arm[i];
@@ -203,11 +203,12 @@ for(const arm of harbourArm){
   const [x,z]=arm.at(-1);
   circle(x,z,3.37,.867,'#d1c2a4',-.47);
 }
-for(let i=1;i<harbourRefs.length;i++){
-  stripMap('#b4a489',harbourRefs[i-1],harbourRefs[i],12,.408,.07,-2.8);
+for(let i=1;i<harbourQuay.length;i++){
+  strip('#b4a489',harbourQuay[i-1],harbourQuay[i],9,.408,.07,-2.8);
 }
-stripMap('#b59770',[366,313],[368,290],4.4,.74,.22,-.41);
-stripMap('#b59770',[440,340],[447,317],4.4,.74,.22,-.41);
+// Harbour revetments and jetty caps in the north basin.
+stripMap('#b59770',[335,328],[337,288],4.4,.74,.22,-.41);
+stripMap('#b59770',[386,365],[387,323],4.4,.74,.22,-.41);
 stripMap('#aa9c82',[173,504],[194,505],5,.29,.37,-2.8);
 stripMap('#aa9c82',[169,507],[165,572],4,.29,.37,-2.8);
 for(const [x,z] of [[384,253],[416,253],[366,290],[447,317]]){
@@ -249,15 +250,15 @@ function mapBuilding(px,pz,w,d,h,i){
   buildings.push({x,z,r:Math.hypot(w,d)*.49});
   return p;
 }
-const landmarkPositions=[
-  {name:'Angolhitheem Hill',p:[275,319]},
-  {name:'Thihthi Cafe',p:[310,414]},
-  {name:'Beach',p:[492,408]},
-  {name:'North Harbour',p:[403,280]}
-];
+const landmarkPositions=landmarkSites;
 mapBuilding(313,332,10.5,6.5,3.2,1);
 mapBuilding(310,414,6.6,4.9,2.9,3);
 mapBuilding(480,392,5.4,4.2,2.5,2);
+// Landmarks are approximate visual proxies, not measured building footprints.
+mapBuilding(383,502,12.5,7.5,3.4,4); // School vicinity
+mapBuilding(432,438,7.0,5.0,2.9,5); // Xefex vicinity
+mapBuilding(391,371,9.0,6.0,3.1,6); // Council / harbour vicinity
+mapBuilding(437,388,7.0,5.0,2.9,7); // Visitor centre vicinity
 for(let i=0,placed=0;i<1600&&placed<62;i++){
   const px=189+random()*351,pz=342+random()*319;
   const [x,z]=mapPoint(px,pz);
@@ -305,19 +306,25 @@ function tree(x,z,s,compact=false){
     o.rotation.y=random()*TAU;
   }
 }
-const forestEdge=[[474,485],[492,483],[519,500],[540,551],[552,610],
-  [573,684],[586,755],[596,820],[590,873],[569,902],[532,922],[483,917],
+const forestEdge=[[474,485],[492,483],[499,507],[506,551],[525,610],
+  [550,684],[558,755],[570,820],[577,873],[569,902],[532,922],[483,917],
   [443,904],[401,890],[364,869],[349,843],[381,825],[416,808],[408,763],
   [369,752],[348,726],[315,701],[286,690],[271,671],[309,664],[363,663],
   [403,634],[411,601],[446,569],[445,538]];
 islandDisk('Southern woodland',.401,forestEdge.map(p=>mapPoint(...p)),'#6b844a');
 const plots=[
   {color:'#74965d',pts:[[300,570],[344,597],[307,654],[263,627]]},
-  {color:'#768d50',pts:[[247,709],[330,705],[407,761],[424,810],[390,829],[315,812],[264,781]]}
+  {color:'#768d50',pts:[[247,709],[330,705],[407,761],[424,810],[390,829],[315,812],[264,781]]},
+  {color:'#719761',pts:[[342,580],[381,588],[370,618],[332,606]]}
 ];
 plots.forEach(({color,pts})=>islandDisk('Open clearing',.407,pts.map(p=>mapPoint(...p)),color));
-const field=plots[0].pts;
-for(let i=0;i<4;i++)stripMap('#c2c7a2',field[i],field[(i+1)%4],.13,.435,.013,-3);
+// Football and futsal pitches remain clear of the southern woodland.
+for(const field of [plots[0].pts,plots[2].pts]){
+  for(let i=0;i<4;i++)stripMap('#c2c7a2',field[i],field[(i+1)%4],.13,.435,.013,-3);
+  const midA=field[0].map((v,i)=>(v+field[3][i])/2);
+  const midB=field[1].map((v,i)=>(v+field[2][i])/2);
+  stripMap('#c2c7a2',midA,midB,.10,.437,.012,-3);
+}
 function vegetation(px,pz,size,isPalm,compact=false){
   const [x,z]=mapPoint(px,pz);
   if(!inside(x,z)||roadGap(x,z)<5.2||buildings.some(b=>Math.hypot(x-b.x,z-b.z)<b.r+1.25))return false;
@@ -677,10 +684,10 @@ const cameraViews={
 const destination={...cameraViews.overview};
 const current={...destination};
 const landmarkLayer=document.querySelector('#landmarks');
-const landmarks=landmarkPositions.map(({name,p})=>{
+const landmarks=landmarkPositions.map(({name,p,major})=>{
   const node=document.createElement('span');node.textContent=name;landmarkLayer.append(node);
   const [x,z]=mapPoint(...p);
-  return {node,position:v(x,3.4,z)};
+  return {node,position:v(x,3.4,z),major};
 });
 const projected=v();
 let selectedView='overview';
@@ -896,9 +903,9 @@ function aim(dt){
   sky.position.copy(camera.position);
   drawPrototypeOverlay();
   landmarkLayer.hidden=selectedView!=='overview'||current.r<215;
-  if(!landmarkLayer.hidden)for(const {node,position} of landmarks){
+  if(!landmarkLayer.hidden)for(const {node,position,major} of landmarks){
     projected.copy(position).project(camera);
-    node.hidden=projected.z>1||Math.abs(projected.x)>.80||Math.abs(projected.y)>.78;
+    node.hidden=projected.z>1||Math.abs(projected.x)>.80||Math.abs(projected.y)>.78||(compact.matches&&!major);
     node.style.left=(projected.x*.5+.5)*100+'%';
     node.style.top=(.5-projected.y*.5)*100+'%';
   }
