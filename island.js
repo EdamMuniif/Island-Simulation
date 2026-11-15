@@ -253,7 +253,7 @@ function mapBuilding(px,pz,w,d,h,i){
 const landmarkPositions=landmarkSites;
 mapBuilding(313,332,10.5,6.5,3.2,1);
 mapBuilding(310,414,6.6,4.9,2.9,3);
-mapBuilding(480,392,5.4,4.2,2.5,2);
+mapBuilding(470,392,5.4,4.2,2.5,2);
 // Landmarks are approximate visual proxies, not measured building footprints.
 mapBuilding(383,502,12.5,7.5,3.4,4); // School vicinity
 mapBuilding(432,438,7.0,5.0,2.9,5); // Xefex vicinity
@@ -376,8 +376,8 @@ function boat(x,z,heading,color,type=0){
   return p;
 }
 const boats=[
-  [350,287,.1,'#437c87',1],[369,281,-.27,'#c67b4d',0],[432,311,.20,'#cf8155',0],
-  [457,316,-.43,'#508482',1],[406,282,-.13,'#d9b267',0],[186,545,.1,'#d4d7c7',0]
+  [355,269,.1,'#437c87',1],[369,281,-.27,'#c67b4d',0],[432,311,.20,'#cf8155',0],
+  [461,270,-.43,'#508482',1],[406,282,-.13,'#d9b267',0],[186,545,.1,'#d4d7c7',0]
 ].map(([px,pz,heading,color,type],i)=>[boat(...mapPoint(px,pz),heading,color,type),i]);
 
 const lampBulb=new T.MeshStandardMaterial({color:'#d5decd',emissive:'#ffc977',emissiveIntensity:0});
