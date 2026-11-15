@@ -48,6 +48,18 @@ test('ArcGIS clockwise outer shell and anticlockwise interior convert with hole'
   assert.ok(!pointInRing([73.010,5.794],outer));
 });
 
+test('Independent published survey points PSM 0114 and PSM 0119 corroborate UTM projection',()=>{
+  const points=[
+    {lat:5+47/60+36.16/3600, lon:73+19.57/3600, E:279136.9440, N:640752.3167},
+    {lat:5+47/60+40.11/3600, lon:73+28.69/3600, E:279418.0607, N:640872.6946}
+  ];
+  for(const p of points){
+    const actual=wgs84ToUtm43(p.lon,p.lat);
+    assert.ok(Math.abs(actual.easting-p.E)<1);
+    assert.ok(Math.abs(actual.northing-p.N)<1);
+  }
+});
+
 test('Multiple ArcGIS outer rings produce GeoJSON MultiPolygon',()=>{
   const second=outer.map(([lon,lat])=>[lon+.006,lat]);
   const geometry=esriRingsToGeoJSON([outer,second]);
