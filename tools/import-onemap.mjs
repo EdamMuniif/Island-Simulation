@@ -8,7 +8,7 @@
  * If source feature names are ambiguous, inspect the printed candidates and
  * select the verified identifier: --object-id <number>.
  */
-import {mkdir,writeFile} from 'node:fs/promises';
+import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import {esriRingsToGeoJSON,validateIslandBoundary} from '../geo/validate.js';
 import {CRS,ORIGIN} from '../geo/coordinates.js';
 
@@ -16,6 +16,7 @@ const SERVICE='https://services7.arcgis.com/yvCbn3q8PPtPLZIM/arcgis/rest/service
 const LICENSE='https://readme.onemap.mv/pdf/Data%20Usage%20License.pdf';
 const OUT='data/island.geojson';
 const META='data/island-source.json';
+const MANIFEST='data/source-manifest.json';
 const args=process.argv.slice(2);
 const dryRun=args.includes('--dry-run');
 const idPos=args.indexOf('--object-id');
@@ -118,7 +119,17 @@ async function main(){
   await mkdir('data',{recursive:true});
   await writeFile(OUT,JSON.stringify(dataset,null,2)+'\n');
   await writeFile(META,JSON.stringify(metadata,null,2)+'\n');
-  console.log('Saved',OUT,'and',META);
+  const manifest=JSON.parse(await readFile(MANIFEST,'utf8'));
+  manifest.layers.islandBoundary={
+    ...manifest.layers.islandBoundary,
+    status:'imported-pending-visual-review',
+    file:OUT,
+    objectId:original.attributes?.[idField],
+    areaM2:qa.areaM2,
+    vertexCount:qa.vertexCount
+  };
+  await writeFile(MANIFEST,JSON.stringify(manifest,null,2)+'\n');
+  console.log('Saved',OUT,',',META,'and updated',MANIFEST);
 }
 main().catch(error=>{
   console.error('V3.1 import failed safely:',error.message);
