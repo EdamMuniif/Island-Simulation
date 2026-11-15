@@ -4,7 +4,7 @@ import * as THREE from './three.module.js';
 import { mergeGeometries } from './merge.js';
 import { LAMP_POSITIONS, DEFAULTS, makeController, testTrafficAt } from './adaptive.js';
 import { PHASES, signalAt, lightsOn, forwardDistance } from './traffic.js';
-import { SCALE, grid, roadCoordinates, inside, outline, inland, reefRings, shuttle, streets, ROAD_CLASSES, ROAD_PROFILES, harbourArm, harbourQuay, landmarkSites } from './map.js';
+import { SCALE, grid, roadCoordinates, inside, outline, inland, reefRings, shuttle, streets, harbourArm, harbourQuay, landmarkSites } from './map.js';
 import { ROAD_VEHICLE_TYPES, PEDESTRIAN_ROADS, CROSSING_SPECS, streetLoop, roadCrossing } from './movementRoutes.js';
 
 assert.equal(THREE.REVISION, '187');
@@ -106,23 +106,6 @@ assert.ok(islandSource.includes('ROAD_VEHICLE_TYPES[i]'));
 assert.ok(islandSource.includes('walkingRoutes.map('));
 assert.ok(islandSource.includes('CROSSING_SPECS.map('));
 assert.ok(islandSource.includes('movementRoutes.js'));
-
-// V3 narrowing: widths fit the existing visual vehicle envelopes.
-assert.equal(ROAD_CLASSES.length,streets.length);
-assert.equal(new Set(ROAD_CLASSES).size,3);
-for(const roadClass of ROAD_CLASSES){
-  const p=ROAD_PROFILES[roadClass];
-  assert.ok(p && p.base>p.surface && p.surface<6.5);
-}
-const carHalfWidth=1.65/2;
-for(let i=0;i<streets.length;i++){
-  const laneOffset=i===0?1.68:i===1?1.45:1.05;
-  const halfRoad=ROAD_PROFILES[ROAD_CLASSES[i]].surface/2;
-  assert.ok(halfRoad>laneOffset+carHalfWidth,
-    'narrowed road cannot contain modeled car on street '+i);
-}
-const sampleCrossing=roadCrossing(streets[0],2,.5);
-assert.equal(sampleCrossing.length,6.4);
 console.log('PASS — Three.js r187, geometry, traffic, lighting schedule, transforms, controller, and asset references.');
 console.log('PASS — V3 counts, 13 vehicle routes, 12 walker routes, four crossings, and all-land route samples.');
 console.log('NOTE — map geometry is visually traced, not surveyed; browser rendering remains unverified.');

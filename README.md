@@ -118,26 +118,3 @@ test actor at a time.
 
 Run `node verify.mjs` to check counts, route bounds and the existing lighting
 logic; then run `python3 -m http.server 8000` for visual verification.
-
-## V3: village-scale road narrowing (review branch)
-
-This change **retains all 13 road centerlines**, buildings, vegetation, coastline,
-harbour, landmark objects, 13 vehicles, 12 walkers and 4 crossing characters.
-The road rendering now uses three narrower visual width profiles:
-
-| Street class | Surface width | Pale base width | Roads |
-| --- | ---: | ---: | ---: |
-| Main | 5.20 | 5.90 | 2 |
-| Secondary | 4.45 | 5.05 | 6 |
-| Minor residential | 3.95 | 4.55 | 5 |
-
-Compared with the previous uniform 6.5 surface and 8.0 base, this reduces
-road visual dominance, removes oversized junction bulbs, and reduces zebra
-crossing span. The default pedestrian crossing approach half-width is changed
-from 4.7 to 3.2 local scene units. Existing vehicle offsets are kept,
-with a model-envelope clearance assertion for each road class.
-
-**The numbers above are illustrative local scene units, not measured physical
-road widths.** They are based on a visual comparison with the supplied
-satellite reference, not a surveyed roadway specification. Test the camera,
-traffic, walking routes and lamp overlays in a browser before merging.
