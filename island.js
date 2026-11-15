@@ -543,29 +543,30 @@ function carModel(color,type){
   return p;
 }
 import {stepLane,signalAt,lightsOn} from './traffic.js';
+import {ROAD_VEHICLE_TYPES,PEDESTRIAN_ROADS,CROSSING_SPECS,streetLoop,roadCrossing} from './movementRoutes.js';
 const carColors=['#d7d9cf','#bc583e','#3b8192','#d7a650','#4d6273','#d5c5a6','#697e59','#518a86'];
-function makeLane(route,dir,offset,stops,n,shift,side=false){
-  const cars=[];
-  for(let i=0;i<n;i++){
-    const type=i%5===3?'cycle':i%4===1?'motorbike':'car';
-    const s=(i/n*route.length+shift)%route.length;
-    const cruise=(type==='cycle'?5.6:type==='motorbike'?10:9.6)*(side?.73:1)+random()*.75;
-    cars.push({type,s,speed:cruise*.7,cruise,length:type==='car'?3.46:1.96,commit:null,model:carModel(carColors[(i+(dir===1?0:3))%carColors.length],type)});
-  }
-  return {route,length:route.length,direction:dir,offset,stops,cars,side};
+// V3: one vehicle per drawn road, rather than all thirteen on just two lanes.
+// Keep the two signal-controlled shuttle routes unchanged. The other eleven
+// visual roads use reversible, offset polyline routes with rounded U-turns.
+function makeLane(route,dir,offset,stops,type,shift,side=false,roadIndex=0){
+  const cruise=(type==='cycle'?5.6:type==='motorbike'?10:9.6)*(side?.73:1)+random()*.75;
+  const car={type,s:shift%route.length,speed:cruise*.7,cruise,
+    length:type==='car'?3.46:1.96,commit:null,
+    model:carModel(carColors[roadIndex%carColors.length],type)};
+  return {route,length:route.length,direction:dir,offset,stops,cars:[car],side,roadIndex};
 }
-const lanes=[
-  makeLane(main,1,0,[main.stopAt(111,18,true),main.stopAt(111,12,false)],8,24),
-  makeLane(sideRoad,1,0,[sideRoad.stopAt(123,13,true),sideRoad.stopAt(123,13,false)],5,35,true)
-];
-const paths=[
-  [grid(-85,7.2),grid(-17,7.2),.43],
-  [grid(-102,-7.2),grid(-17,-7.2),.43],
-  [grid(15,7.2),grid(124,7.2),.43],
-  [grid(6.8,22),grid(6.8,108),.43],
-  [mapPoint(286,310),mapPoint(332,309),.87],
-  [mapPoint(368,314),mapPoint(463,352),.88]
-].map(([a,b,y])=>[...a,...b,y]);
+const lanes=streets.map((road,i)=>{
+  const route=i===0?main:i===1?sideRoad:streetLoop(road,1.05);
+  const stops=i===0?[main.stopAt(111,18,true),main.stopAt(111,12,false)]
+    :i===1?[sideRoad.stopAt(123,13,true),sideRoad.stopAt(123,13,false)]:[];
+  const shift=i===0?24:i===1?35:route.length*(.17+(i*0.053)%0.56);
+  return makeLane(route,1,0,stops,ROAD_VEHICLE_TYPES[i],shift,i===1,i);
+});
+// Twelve distinct road-side walking paths, keeping existing building, road,
+// vegetation and terrain meshes unchanged.
+// Two coastal street segments have little verge space; keep those walkers
+// inside the island rather than placing them in water.
+const walkingRoutes=PEDESTRIAN_ROADS.map(i=>streetLoop(streets[i],i===4?1:i===5?2:3.7));
 function human(i){
   const p=new T.Group();p.userData.moving=true;scene.add(p);
   const running=i%4===1;
@@ -592,10 +593,17 @@ function human(i){
   p.scale.setScalar(1+random()*.26);
   return {p,legs,arms,running,phase:random()*TAU,progress:random(),direction:i%2?1:-1,speed:running?3.5+random()*.7:1.36+random()*.46};
 }
-const pedestrians=Array.from({length:12},(_,i)=>({...human(i),path:paths[i%paths.length]}));
-const crossers=Array.from({length:4},(_,i)=>{
-  const direction=i<2?1:-1;
-  return {...human(i+41),direction,offset:(i%2-.5)*.62,at:direction===1?0:1,departed:false,trip:i%2*.8};
+const pedestrians=walkingRoutes.map((route,i)=>({
+  ...human(i),route,s:route.length*((i*.137+.11)%1)
+}));
+// Two junction-controlled crossings and two separate illustrative residential
+// crossings. Unsignalized crossing behavior is visual only, not road safety logic.
+const crossers=CROSSING_SPECS.map((spec,i)=>{
+  const direction=i%2===0?1:-1;
+  const crossingPath=roadCrossing(streets[spec.road],spec.segment,spec.part);
+  return {...human(i+41),direction,crossingPath,controlled:spec.controlled,
+    at:direction===1?0:1,departed:false,trip:i%2*.8,
+    crossing:false,cooldown:i*6+3};
 });
 function gait(o,dt,moving){
   if(moving)o.phase+=dt*(o.running?13.1:8.1);
@@ -611,27 +619,36 @@ function gait(o,dt,moving){
 let walkOpen=0,previousWalk='red';
 function animatePedestrians(dt,walk){
   for(const o of pedestrians){
-    const [x,z,xx,zz,y]=o.path,len=Math.hypot(xx-x,zz-z);
-    o.progress+=dt*o.speed/len*o.direction;
-    if(o.progress>1||o.progress<0){o.progress=clamp(o.progress,0,1);o.direction*=-1;}
-    o.p.position.set(mix(x,xx,o.progress),y+gait(o,dt,true),mix(z,zz,o.progress));
-    o.p.rotation.y=Math.atan2((xx-x)*o.direction,(zz-z)*o.direction);
+    o.s=(o.s+dt*o.speed)%o.route.length;
+    const pos=o.route.pose(o.s);
+    o.p.position.set(pos.x,.43+gait(o,dt,true),pos.z);
+    o.p.rotation.y=Math.atan2(pos.dx,pos.dz);
   }
   if(walk==='green'&&previousWalk!=='green'){
     walkOpen=0;
-    for(const o of crossers)o.departed=false;
+    for(const o of crossers)if(o.controlled)o.departed=false;
   }
   if(walk==='green')walkOpen+=dt;
   previousWalk=walk;
   for(const o of crossers){
-    if(walk==='green'&&walkOpen>=o.trip&&!o.departed){o.crossing=true;o.departed=true;}
-    if(o.crossing){
-      o.at=clamp(o.at+dt*o.direction*o.speed/10.5,0,1);
-      if(o.at===0||o.at===1){o.crossing=false;o.direction*=-1;}
+    o.cooldown=Math.max(0,o.cooldown-dt);
+    if(o.controlled){
+      if(walk==='green'&&walkOpen>=o.trip&&!o.departed){
+        o.crossing=true;o.departed=true;
+      }
+    }else if(!o.crossing&&o.cooldown===0){
+      o.crossing=true;
     }
-    const [x,z]=grid(-13+o.offset,mix(-9.2,9.2,o.at));
-    o.p.position.set(x,.43+gait(o,dt,o.crossing),z);
-    o.p.rotation.y=(o.direction===1?0:Math.PI)-angle;
+    if(o.crossing){
+      o.at=clamp(o.at+dt*o.direction*o.speed/o.crossingPath.length,0,1);
+      if(o.at===0||o.at===1){
+        o.crossing=false;o.direction*=-1;
+        if(!o.controlled)o.cooldown=22;
+      }
+    }
+    const [x,z]=o.crossingPath.from,[xx,zz]=o.crossingPath.to;
+    o.p.position.set(mix(x,xx,o.at),.43+gait(o,dt,o.crossing),mix(z,zz,o.at));
+    o.p.rotation.y=Math.atan2((xx-x)*o.direction,(zz-z)*o.direction);
   }
 }
 const testWalker=human(104), testRunner=human(105);
@@ -1002,10 +1019,9 @@ function updatePrototype(dt){
       actors.push({...roadCoordinates(x,z),direction:car.speed>.25&&Math.abs(along)>.4?Math.sign(along):0});
     }
     for(const o of pedestrians){
-      const {x,z}=o.p.position, [a,b,c,d]=o.path;
-      const progress=(c-a)*axis.x+(d-b)*axis.z;
-      const parallel=Math.abs(progress)>Math.hypot(c-a,d-b)*.65;
-      actors.push({...roadCoordinates(x,z),direction:parallel?Math.sign(progress)*o.direction:0});
+      const {x,z}=o.p.position,heading=o.p.rotation.y;
+      const progress=Math.sin(heading)*axis.x+Math.cos(heading)*axis.z;
+      actors.push({...roadCoordinates(x,z),direction:Math.abs(progress)>.65?Math.sign(progress):0});
     }
     for(const o of crossers)actors.push({...roadCoordinates(o.p.position.x,o.p.position.z),direction:0});
   }

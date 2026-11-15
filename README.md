@@ -82,3 +82,39 @@ from OneMap (on a machine with network access), run
 
 **Data status:** the official polygon has not yet been imported or visually
 approved. No real street or building locations are claimed for the current map.
+
+## V3: Island-wide people and vehicle distribution (review branch)
+
+The existing V2 shoreline, road meshes, harbour, buildings, vegetation and
+camera presets are **retained**. V3 changes only the movement/population layer.
+
+| Ambient population | Count |
+| --- | ---: |
+| Cars | 8 |
+| Motorcycles with riders | 3 |
+| Bicycles with riders | 2 |
+| Walking/running pedestrians | 12 |
+| Pedestrian crossing characters | 4 |
+| **Total independently animated road users** | **29** |
+
+**Distribution:** Each of the 13 existing street polylines has one vehicle.
+The 12 walkers follow distinct street-side routes. Four crossing characters
+are placed at four different road locations (two near the original signal
+junctions and two residential street crossings). The dedicated five night-test
+models remain separate; night test hides ambient traffic and displays one
+test actor at a time.
+
+**Technical boundaries:**
+- The first two vehicle routes retain their existing junction signal behavior.
+  The remaining 11 roads support independent out-and-back motion and U-turns.
+- The island roads are an **illustrative network** and not a surveyed, connected
+  road graph. Cars currently do not switch between streets.
+- Residential crossing timing is illustrative; vehicle-to-pedestrian collision
+  avoidance and intersection priority/yielding have not been implemented.
+  Do not interpret traffic animation as a certified safety or detection study.
+- The four-lamp adaptive LED and energy calculations have not been rewritten.
+- Route-position tests verify all mobile routes stay within the model island;
+  **live browser rendering and control interactions remain unverified**.
+
+Run `node verify.mjs` to check counts, route bounds and the existing lighting
+logic; then run `python3 -m http.server 8000` for visual verification.
