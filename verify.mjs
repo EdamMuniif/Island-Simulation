@@ -4,7 +4,7 @@ import * as THREE from './three.module.js';
 import { mergeGeometries } from './merge.js';
 import { LAMP_POSITIONS, DEFAULTS, makeController, testTrafficAt } from './adaptive.js';
 import { PHASES, signalAt, lightsOn, forwardDistance } from './traffic.js';
-import { SCALE, grid, roadCoordinates, inside, outline, reefRings, shuttle } from './map.js';
+import { SCALE, grid, roadCoordinates, inside, outline, inland, reefRings, shuttle, streets, harbourArm, harbourQuay, landmarkSites } from './map.js';
 
 assert.equal(THREE.REVISION, '187');
 assert.equal(typeof THREE.WebGLRenderer, 'function');
@@ -22,6 +22,26 @@ assert.equal(forwardDistance(8, 1, 10, 1), 3);
 assert.equal(forwardDistance(1, 8, 10, -1), 3);
 assert.ok(outline.length > 100);
 assert.equal(reefRings.length, 22);
+// Screenshot-derived geometry invariants (visual, not geodetic).
+assert.equal(streets.length, 13);
+assert.equal(harbourArm.length, 3);
+assert.ok(harbourQuay.length >= 6);
+assert.equal(landmarkSites.length, 12);
+assert.ok(landmarkSites.some(site => site.name === 'Angolhitheem School'));
+for (const road of streets) for (const point of road) {
+  assert.ok(inside(...point), 'Traced road endpoint must remain on island');
+}
+for (const ring of reefRings) assert.equal(ring.length, outline.length);
+const polygonArea = points => Math.abs(points.reduce((a,[x,z],i)=>{
+  const [xx,zz]=points[(i+1)%points.length];
+  return a+x*zz-xx*z;
+},0))/2;
+assert.ok(polygonArea(reefRings[0])>polygonArea(outline));
+assert.ok(polygonArea(outline)>polygonArea(inland));
+const shape = new THREE.Shape(outline.map(([x,z])=>new THREE.Vector2(x,z)));
+const geometry = new THREE.ShapeGeometry(shape);
+assert.equal(geometry.index.count/3,outline.length-2);
+geometry.dispose();
 assert.equal(LAMP_POSITIONS.length, 4);
 for (const u of LAMP_POSITIONS) {
   const [x,z] = grid(u,7);
@@ -45,4 +65,4 @@ for (const asset of ['three.module.js','software.js','map.js','adaptive.js','mer
   assert.ok(island.includes("'./"+asset+"'"),'Missing module reference: '+asset);
 }
 console.log('PASS — Three.js r187, geometry, traffic, lighting schedule, transforms, controller, and asset references.');
-console.log('NOTE — map.js is an approximate reconstruction; browser rendering has not been verified.');
+console.log('NOTE — map geometry is visually traced, not surveyed; browser rendering remains unverified.');
