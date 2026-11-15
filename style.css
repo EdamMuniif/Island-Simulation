@@ -1070,7 +1070,7 @@ button:hover,.playRow select:hover {
 }
 
 .statusCard[open] .statusTitle::after {
-    content: "âˆ’"
+    content: "−"
 }
 
 .statusCard[open] .statusTitle {
