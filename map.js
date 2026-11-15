@@ -90,6 +90,19 @@ export const streets=[
   [[1025,285],[990,359],[953,451]].map(village)
 ];
 
+// V3 road narrowing: visual widths in local scene units, NOT surveyed metres.
+// Keep streets[] arrays unchanged: existing vehicles and pedestrians use them.
+// Profile order follows streets[] indices (13 roads).
+export const ROAD_CLASSES=Object.freeze([
+  'main','main','secondary','secondary','secondary','secondary',
+  'minor','secondary','secondary','minor','minor','minor','minor'
+]);
+export const ROAD_PROFILES=Object.freeze({
+  main:Object.freeze({base:5.90,surface:5.20}),
+  secondary:Object.freeze({base:5.05,surface:4.45}),
+  minor:Object.freeze({base:4.55,surface:3.95})
+});
+
 // Separate north harbour entrance breakwaters, central jetty and quay.
 export const harbourArm=[
   [[433,145],[440,113],[455,103],[479,109]].map(overview),
