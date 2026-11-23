@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Angolhitheemu Smart Lighting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: an engineering control console laid over a living island
+   IDEA: a utility SCADA overlay; every number carries its source tag
+   PICTURE: the full-screen 3D island; schematics (energy flow, pole base) drawn in the panel
+   COLOUR and TYPE: reef-teal glass, sensor mint accent, warm LED tone only for lamp state; Sora + JetBrains Mono for figures
+   LAYOUT: scene fills the screen; clock top-left, time controls top-right, tabbed panel right on desktop, bottom sheet on phones */
+:root{color-scheme:dark;--glass:rgba(7,26,30,.82);--line:rgba(150,225,212,.17);--ink:#eaf6f3;--mute:#9ab8b2;--mint:#5ee6c3;--led:#ffe2a0;--red:#ff7a6b;--pub:#8fb8ff;--ill:#d6a6ff;--pw:368px}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0;height:100%;overflow:hidden;background:#06161a;color:var(--ink);font:15px/1.45 Sora,system-ui,sans-serif;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;outline:none}
+.glass{background:var(--glass);backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);border:1px solid var(--line);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.mono,.kv b,td.n{font-family:'JetBrains Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
+button,input,select{font:inherit;color:inherit}button{cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+#top{position:fixed;top:calc(10px + env(safe-area-inset-top));left:calc(10px + env(safe-area-inset-left));right:calc(10px + env(safe-area-inset-right));display:flex;gap:10px;justify-content:space-between;align-items:flex-start;pointer-events:none;z-index:5}
+#top>*{pointer-events:auto}
+#clockbox{padding:10px 14px 11px;display:grid;gap:4px}
+#ttl{font-size:12px;color:var(--mute);white-space:nowrap}
+#clockrow{display:flex;align-items:baseline;gap:10px}
+#clock{font:700 34px/1 'JetBrains Mono',monospace;letter-spacing:-.5px}
+#phase{font-size:13px;color:var(--mute)}
+#lpill{display:inline-flex;align-items:center;gap:7px;font-size:12px;padding:4px 10px;border-radius:99px;background:rgba(255,255,255,.06);width:max-content}
+#lpill i{width:9px;height:9px;border-radius:50%;background:#55625f}
+#lpill.on i{background:var(--led);box-shadow:0 0 10px var(--led)}
+#speed{display:flex;gap:4px;padding:5px;align-items:center}
+.seg{display:flex;gap:4px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:rgba(255,255,255,.04);border-radius:10px;min-height:40px;min-width:44px;padding:0 10px;font-size:13px}
+.chip.on{background:var(--mint);color:#04211b;border-color:var(--mint);font-weight:600}
+.chip.wide{width:100%}
+.chip.on .tg{background:rgba(4,33,27,.18);color:#04211b;border-color:#04211b}
+#play,#reset{width:44px;height:40px;border-radius:10px;border:0;background:rgba(255,255,255,.08);display:grid;place-items:center}
+#spdc{display:none}
+#panel{position:fixed;z-index:6;top:calc(10px + env(safe-area-inset-top) + 84px);right:calc(10px + env(safe-area-inset-right));bottom:calc(10px + env(safe-area-inset-bottom));width:var(--pw);display:flex;flex-direction:column;overflow:hidden}
+#sheethead{display:none}
+#tabs{display:flex;gap:2px;padding:8px 8px 0;overflow-x:auto;scrollbar-width:none;flex:none}
+#tabs::-webkit-scrollbar{display:none}
+#tabs{-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
+#tabs button{flex:none;border:0;background:none;padding:10px 10px;border-radius:10px;font-size:13px;color:var(--mute);min-height:42px}
+#tabs button.on{background:rgba(94,230,195,.14);color:var(--ink);font-weight:600}
+#body{overflow:auto;padding:12px 16px 18px;flex:1;-webkit-overflow-scrolling:touch}
+.pane{display:none}.pane.on{display:grid;gap:14px}
+.sub-on{display:grid;gap:14px}.sub-off{display:none}
+h4{margin:2px 0 -4px;font-size:13px;color:var(--mint);font-weight:600}
+.lab{font-size:12px;color:var(--mute);margin-bottom:6px;display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.lab b{color:var(--ink);font-weight:600}
+input[type=range]{width:100%;height:36px;background:none;-webkit-appearance:none;appearance:none;margin:0}
+input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:6px;background:rgba(255,255,255,.14)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--mint);margin-top:-8px;border:3px solid #072a24}
+input[type=range]::-moz-range-track{height:6px;border-radius:6px;background:rgba(255,255,255,.14)}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--mint);border:3px solid #072a24}
+input[type=number],input[type=date],select{width:100%;min-height:40px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.05);padding:6px 10px;font-size:16px}
+input::placeholder{color:#c98c84}
+.big{font:700 40px/1 'JetBrains Mono',monospace;color:var(--mint)}
+.sub{font-size:12px;color:var(--mute)}
+.bar{height:10px;border-radius:6px;background:rgba(255,255,255,.08);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:6px}
+.row{display:grid;grid-template-columns:1fr auto;gap:3px 10px;align-items:center;font-size:13px}
+.row b{font-weight:600;text-align:right}
+.kv{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.kv div{background:rgba(255,255,255,.04);border-radius:12px;padding:9px 10px}
+.kv b{display:block;font-size:17px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kv span{font-size:11px;color:var(--mute)}
+.fig{position:relative;height:150px}.fig canvas{position:absolute;inset:0;width:100%;height:100%}
+.note{font-size:12px;color:var(--mute);line-height:1.5}
+.tog{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;min-height:44px}
+.sw{width:48px;height:28px;border-radius:99px;border:0;background:rgba(255,255,255,.15);position:relative;flex:none}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#cfe;transition:left .15s}
+.sw.on{background:var(--mint)}.sw.on::after{left:23px;background:#063}
+.places{display:flex;flex-wrap:wrap;gap:6px}
+.legend{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--mute)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.tg{display:inline-block;font:600 10px/1.5 Sora,sans-serif;padding:0 6px;border-radius:6px;white-space:nowrap;vertical-align:1px;letter-spacing:.1px}
+.tg.pub{background:rgba(143,184,255,.16);color:var(--pub)}.tg.inp{background:rgba(94,230,195,.16);color:var(--mint)}.tg.calc{background:rgba(255,255,255,.1);color:#dfe9e7}.tg.np{border:1px solid rgba(255,122,107,.6);color:var(--red)}.tg.ill{background:rgba(214,166,255,.16);color:var(--ill)}.tg.sim{background:rgba(255,226,160,.14);color:var(--led)}
+table.tb{width:100%;border-collapse:collapse;font-size:12px}
+.tb th{text-align:left;color:var(--mute);font-weight:600;padding:5px 4px;border-bottom:1px solid var(--line)}
+.tb td{padding:5px 4px;border-bottom:1px solid rgba(255,255,255,.05)}
+.tb td.n,.tb th.n{text-align:right;white-space:nowrap}
+.tb tr.hl td{background:rgba(94,230,195,.12)}
+.card2{background:rgba(255,255,255,.04);border-radius:12px;padding:10px 12px;display:grid;gap:6px}
+.fields{display:grid;gap:8px}
+.fld{display:grid;grid-template-columns:1fr 112px;gap:8px;align-items:center;font-size:12px}
+.fld label{color:var(--ink)}.fld label small{display:block;color:var(--mute)}
+.flow text{font:600 10px Sora,sans-serif;fill:#eaf6f3}.flow .v{font:500 10px 'JetBrains Mono',monospace;fill:#5ee6c3}
+.flow rect{fill:rgba(255,255,255,.06);stroke:rgba(150,225,212,.35);rx:8}
+.fl{stroke:#2f4846;stroke-width:3;stroke-dasharray:6 6;fill:none}.fl.on{stroke:#5ee6c3;animation:dash .7s linear infinite}.fl.bad{stroke:#ff7a6b}
+@keyframes dash{to{stroke-dashoffset:-12}}
+#timebar{position:fixed;z-index:5;left:calc(10px + env(safe-area-inset-left));right:calc(var(--pw) + 20px + env(safe-area-inset-right));bottom:calc(10px + env(safe-area-inset-bottom));padding:8px 14px 6px}
+#trow{display:flex;justify-content:space-between;font-size:11px;color:var(--mute)}
+#tslider{background:linear-gradient(90deg,rgba(255,226,160,.28) 0 23.96%,transparent 23.96% 73.96%,rgba(255,226,160,.28) 73.96%);border-radius:8px}
+#cam{position:fixed;z-index:5;right:calc(var(--pw) + 20px + env(safe-area-inset-right));bottom:calc(84px + env(safe-area-inset-bottom));display:grid;gap:6px;grid-template-columns:44px 44px}
+#cam button{width:44px;height:44px;border-radius:12px;font:600 18px/1 Sora;display:grid;place-items:center}
+#cam button.on{background:var(--mint);color:#04211b}
+#card{position:fixed;z-index:7;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top) + 84px);width:min(330px,calc(100vw - 20px));padding:12px 14px;display:none}
+#card.on{display:block}
+#card h3{margin:0 0 6px;font-size:15px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+#card h3 button{border:0;background:rgba(255,255,255,.08);border-radius:10px;width:36px;height:36px}
+#labels{position:fixed;inset:0;pointer-events:none;z-index:2;overflow:hidden}
+.lbl{position:absolute;transform:translate(-50%,-100%);font-size:12px;font-weight:600;padding:4px 9px;border-radius:99px;background:rgba(5,22,26,.72);border:1px solid var(--line);white-space:nowrap;pointer-events:auto;cursor:pointer;color:var(--ink)}
+.lbl.sig{border-color:rgba(255,122,107,.55)}.lbl.ir2{border-color:var(--mint)}.lbl.ir{border-color:var(--mint);color:var(--mint)}
+#satui{position:fixed;z-index:5;left:calc(10px + env(safe-area-inset-left));bottom:calc(84px + env(safe-area-inset-bottom));display:none;align-items:center;gap:12px;padding:8px 12px;font-size:12px;color:var(--ink)}
+#sbar{height:7px;border:2px solid #eaf6f3;border-top:0;width:100px;margin-bottom:2px}
+#csat{grid-column:1/-1;width:auto!important;font:600 13px/1 Sora!important;gap:6px;display:flex!important;align-items:center;justify-content:center}
+@media (max-width:820px){#satui{bottom:calc(140px + env(safe-area-inset-bottom))}}
+#hint{position:fixed;z-index:4;left:50%;transform:translateX(-50%);bottom:calc(88px + env(safe-area-inset-bottom));font-size:12px;color:var(--mute);padding:6px 12px;border-radius:99px;background:rgba(5,22,26,.6);transition:opacity 1s;white-space:nowrap}
+#toast{position:fixed;z-index:9;left:50%;top:50%;transform:translate(-50%,-50%);padding:14px;width:min(420px,calc(100vw - 30px));display:none}
+#toast textarea{width:100%;height:160px;background:#041214;color:var(--ink);border:1px solid var(--line);border-radius:8px;font:11px 'JetBrains Mono',monospace}
+#err{position:fixed;inset:auto 10px 10px 10px;z-index:20;background:#3a0d0d;color:#ffd7d7;padding:10px;border-radius:10px;font:12px/1.4 'JetBrains Mono',monospace;display:none;white-space:pre-wrap}
+#load{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:#06161a;transition:opacity .6s}
+#load div{text-align:center;color:var(--mute);font-size:14px}#load b{display:block;color:var(--ink);font-size:20px;margin-bottom:6px}
+@media (max-width:820px){
+ :root{--pw:0px}
+ #panel{top:auto;left:0;right:0;bottom:0;width:auto;border-radius:18px 18px 0 0;height:calc(58px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);transition:height .25s ease}
+ #panel.open{height:min(64vh,600px)}
+ #sheethead{display:flex;align-items:center;gap:10px;padding:8px 14px;min-height:58px;border:0;background:none;width:100%;text-align:left;flex:none;position:relative}
+ #sheethead .grab{position:absolute;left:50%;top:5px;width:38px;height:4px;border-radius:4px;background:rgba(255,255,255,.25);transform:translateX(-50%)}
+ #strip{flex:1;font-size:13px;display:flex;gap:12px;flex-wrap:wrap;color:var(--mute)}#strip b{color:var(--ink)}
+ #chev{transition:transform .25s}#panel.open #chev{transform:rotate(180deg)}
+ #timebar{right:calc(10px + env(safe-area-inset-right));bottom:calc(66px + env(safe-area-inset-bottom))}
+ #cam{right:calc(10px + env(safe-area-inset-right));bottom:calc(140px + env(safe-area-inset-bottom))}
+ #hint{bottom:calc(140px + env(safe-area-inset-bottom))}
+ #clock{font-size:28px}#ttl{display:none}
+ #card{top:auto;bottom:calc(140px + env(safe-area-inset-bottom))}
+}
+@media (max-width:560px){#spd{display:none}#spdc{display:block;min-width:64px}#reset{display:none}}
+@media (prefers-reduced-motion:reduce){#panel,.sw::after,#load{transition:none}.fl.on{animation:none}}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
+</head>
+<body>
+<canvas id="c" tabindex="0" aria-label="3D view of R. Angolhitheemu"></canvas>
+<div id="labels"></div>
+<div id="load"><div><b>R. Angolhitheemu</b>Building the island…</div></div>
+
+<div id="top">
+ <div id="clockbox" class="glass">
+  <div id="ttl">R. Angolhitheemu · smart adaptive LED street lighting simulation</div>
+  <div id="clockrow"><span id="clock" class="mono">17:20</span><span id="phase">Day</span><span id="effsp" class="mono" style="font-size:11px;color:var(--led)"></span></div>
+  <span id="lpill"><i></i><span id="ltxt">Lights off</span></span>
+ </div>
+ <div id="speed" class="glass">
+  <button id="play" aria-label="Pause"><svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><rect x="3" y="2" width="4" height="14" rx="1"/><rect x="11" y="2" width="4" height="14" rx="1"/></svg></button>
+  <button id="reset" aria-label="Reset simulation"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9a6 6 0 1 0 2-4.5M3 2v4h4"/></svg></button>
+  <button class="chip mono on" id="spdc" aria-label="Clock speed">240×</button>
+  <div class="seg" id="spd"><button class="chip mono" data-v="1">1×</button><button class="chip mono" data-v="60">60×</button><button class="chip mono on" data-v="240">240×</button><button class="chip mono" data-v="900">900×</button></div>
+ </div>
+</div>
+
+<div id="card" class="glass" role="dialog" aria-live="polite"><h3><span id="ctitle">Lamp</span><button id="cclose" aria-label="Close">✕</button></h3><div id="cbody" class="note"></div><button class="chip wide" id="cinspect" style="margin-top:8px">Inspect pole base (structure)</button></div>
+
+<div id="cam">
+ <button class="glass on" id="ctour" aria-label="Auto tour: rotate and zoom around the island" title="Auto tour">⟳</button><button class="glass" id="cstreet" aria-label="Street-level camera" title="Street level"><svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><circle cx="9" cy="3" r="2"/><path d="M7 6h4l1 5h-1.5l-.5 6h-2l-.5-6H6z"/></svg></button>
+ <button class="glass" id="crotl" aria-label="Rotate left" title="Rotate left">↺</button><button class="glass" id="crotr" aria-label="Rotate right" title="Rotate right">↻</button>
+ <button class="glass" id="zin" aria-label="Zoom in">+</button><button class="glass" id="zout" aria-label="Zoom out">−</button>
+ <button class="glass" id="csat" aria-label="Satellite view, top-down, north up"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M8 4.5l2.2 6L8 9.2 5.8 10.5z" fill="currentColor"/></svg>Satellite</button>
+</div>
+<div id="satui" class="glass"><svg width="20" height="30" viewBox="0 0 20 30" aria-label="North"><path d="M10 2l6.5 17L10 15 3.5 19z" fill="#eaf6f3"/><text x="10" y="29" text-anchor="middle" font-size="9" font-weight="700" fill="#eaf6f3" font-family="Sora">N</text></svg><div><div id="sbar"></div><span id="stxt" class="mono">200 m</span></div><span>Daylight imagery</span><button class="sw on" id="satday" aria-label="Daylight imagery (view only)"></button><span id="satlab" class="mono" style="color:var(--mute)"></span></div>
+<div id="hint"></div>
+
+<div id="timebar" class="glass">
+ <input id="tslider" type="range" min="0" max="1439" step="1" value="1040" aria-label="Time of day">
+ <div id="trow" class="mono"><span>00:00</span><span>05:45</span><span>12:00</span><span>17:45</span><span>24:00</span></div>
+</div>
+
+<aside id="panel" class="glass">
+ <button id="sheethead" aria-label="Show controls"><span class="grab"></span><div id="strip"></div><svg id="chev" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 11l5-5 5 5"/></svg></button>
+ <nav id="tabs"><button class="on" data-t="harbour">Harbour</button><button data-t="light">Lighting</button><button data-t="sensor">Sensor</button><button data-t="energy">Energy</button><button data-t="solar">Solar</button><button data-t="struct">Structure</button><button data-t="traffic">Traffic</button><button data-t="view">View</button></nav>
+ <div id="body">
+  <!-- HARBOUR (HarbourLightingUI) -->
+  <section class="pane on" id="p-harbour">
+   <h4>Harbour Smart Lighting <span class="tg inp">HARBOUR_ROAD · SMART_ADAPTIVE</span></h4>
+   <div class="kv" id="hkv"></div>
+   <div class="tog">Sensor arrangement and detection overlay<button class="sw on" id="rings" aria-label="Sensor overlay"></button></div>
+   <div class="tog">X-ray poles (internal wiring)<button class="sw" id="xray" aria-label="X-ray poles"></button></div>
+   <div><div class="lab">PIR events accepted from</div><div class="seg" id="detc"><button class="chip on" data-v="pedestrian">Pedestrians</button><button class="chip on" data-v="cyclist">Cyclists</button><button class="chip on" data-v="vehicle">Vehicles</button></div></div>
+   <div class="note">PIR senses changes in infrared radiation. Warm moving bodies trigger it best; vehicle detection is not reliable in all conditions. Events come from the simulated road users or the test button, never from real sensors. The IR scenarios in Nasih.pdf are not validation of this six-PIR design.</div>
+   <div class="lab" style="align-items:center"><span>Detection events, newest first</span><button class="chip" id="inj">Inject test event</button></div>
+   <div class="scroll"><table class="tb" id="evtab"></table></div>
+   <h4>Follow-me lighting <span class="tg inp">Harbour only</span></h4>
+   <div><div class="lab">Wake pattern</div><div class="seg" id="wmode"><button class="chip" data-v="both">Both sides</button><button class="chip on" data-v="follow">Follow direction of travel</button></div></div>
+   <div><div class="lab">Lamps lit ahead <span class="tg inp">Input</span> <b class="mono" id="vahead">2</b></div><input type="range" id="ahead" min="1" max="3" step="1" value="2"></div>
+   <div><div class="lab">Tail hold behind the road user <span class="tg inp">Input</span> <b class="mono" id="vtail">2 s</b></div><input type="range" id="tail" min="0" max="6" step="1" value="2"></div>
+   <div class="scroll"><table class="tb" id="trtab"></table></div>
+   <button class="chip wide" id="hfollow">Follow a harbour road user (camera)</button>
+   <div class="note">PIR cannot identify anyone or tell direction from one pole. The first pole to see a road user wakes both sides; once a neighbouring pole detects next, the direction is known, lamps ahead light in sequence, the lamp just passed dims after the tail hold, and the lamp ahead stays lit for the estimated time to arrive (pole gap ÷ measured speed). Several people close together look like one track. Arrows on the road show each track.</div>
+   <h4>Acceptance checks</h4>
+   <button class="chip wide" id="runt">Run the 10 acceptance checks</button>
+   <div id="tres" class="sub-off"></div>
+   <details class="note"><summary style="cursor:pointer;color:var(--ink)">Manual verification procedure</summary><ol style="padding-left:18px;margin:6px 0">
+    <li>View › Harbour smart poles at 21:00. Only harbour poles show sensor fans; zoom to any other lamp: no fans, constant 100 %.</li>
+    <li>Lighting › Close-up of a smart pole: count six lenses on the 914 mm ring and the rear controller box; switch x-ray on to see the wiring.</li>
+    <li>Pause at 23:00 with the harbour empty: harbour lamps settle at the standby level.</li>
+    <li>Select a harbour pole, press Inject test event: that pole rises to 100 %, neighbours follow 0.35 s apart, nothing else changes; after the hold they fade back to standby.</li>
+    <li>Set 12:00 and inject again: the log shows "day: no lighting action".</li>
+    <li>Sensor › 20 lux, Manual ambient ≈ 20 lx, fluctuation 40 %: with band 0 and dwell 0 the harbour flickers; with defaults it holds. Other lamps follow only the clock.</li>
+    <li>Change the lamp rating: harbour installed power = poles × rating, and live power scales with it.</li></ol></details>
+  </section>
+
+  <!-- LIGHTING -->
+  <section class="pane" id="p-light">
+   <div><div class="lab">Harbour control strategy (all other lamps: standard fixed, 100 %)</div><div class="seg" id="ctrl"><button class="chip" data-v="conv">Fixed 100 %</button><button class="chip on" data-v="adaptive">PIR adaptive</button><button class="chip" data-v="uganda">Schedule demo <span class="tg pub">Ashraf.pdf</span></button><button class="chip" data-v="ir">IR scenario replay <span class="tg pub">Nasih.pdf</span></button></div></div>
+   <div class="kv">
+    <div><b id="lcfg">0</b><span>Lamps configured <span class="tg calc">Layout</span></span></div>
+    <div><b id="lact">0 / 0</b><span>Active / inactive</span></div>
+    <div><b id="lbri">0 %</b><span>Average brightness <span class="tg sim">Simulated</span></span></div>
+    <div><b id="llux">0 lx</b><span>Ambient illumination <span class="tg ill" id="lluxsrc">Model</span></span></div>
+   </div>
+   <div id="m-adaptive" class="sub-on">
+    <h4>Harbour smart poles <span class="tg inp">Concept reference, not certified</span></h4>
+    <div class="note">Only the <b id="hzn">0</b> poles on Harbour road are smart adaptive poles. Every other island lamp is a standard fixed streetlight: no sensors, no dimming, 100 % whenever the lights are on.</div>
+    <div class="card2" id="hzlist"></div>
+    <div class="seg"><button class="chip" id="hzgo">Fly to harbour poles</button><button class="chip" id="hzinsp">Close-up of a smart pole</button></div>
+    <div><div class="lab">PIR detection range per pole <span class="tg ill">Assumption</span> <b class="mono" id="vpir">8 m</b></div><input type="range" id="pir" min="3" max="14" step="1" value="8"></div>
+    <div><div class="lab">Sequential wake along harbour road</div><div class="seg" id="wake"><button class="chip" data-v="0">Off</button><button class="chip on" data-v="1">1 pole each side</button><button class="chip" data-v="2">2 poles each side</button></div></div>
+    <div><div class="lab">Dimmed level (no motion) <b class="mono" id="vdim">30 %</b></div><input type="range" id="dim" min="10" max="60" step="5" value="30"></div>
+    <div><div class="lab">Return-to-dim delay after last motion <b class="mono" id="vhold">6 s</b></div><input type="range" id="hold" min="2" max="20" step="1" value="6"></div>
+    <div><div class="lab">Per-sensor field of view <span class="tg ill">Assumption</span> <b class="mono" id="vfov">60°</b></div><input type="range" id="fov" min="20" max="120" step="5" value="60"></div>
+    <div><div class="lab">Minimum detection distance (blind zone) <span class="tg ill">Assumption</span> <b class="mono" id="vmind">0.5 m</b></div><input type="range" id="mind" min="0" max="3" step=".25" value=".5"></div>
+    <div class="note">Coverage drawn here is geometric only. Below 60° per sensor, gaps open between the six fans; real range, field of view, blind spots and line-of-sight blocking depend on the PIR datasheet, which has not been supplied.</div>
+    <div class="legend"><span><i style="background:#5ee6c3"></i>PIR detecting</span><span><i style="background:#1f6a5e"></i>Awake (hold or sequence)</span><span><i style="background:#ffe2a0"></i>Lamp output</span></div>
+    <table class="tb"><tr><th>Harbour smart pole</th><th class="n">Design input</th></tr><tr><td>Pole height</td><td class="n">6000 mm</td></tr><tr><td>Material / wall</td><td class="n">S235 galvanised, 4.0 mm</td></tr><tr><td>Curved arm</td><td class="n">1500 mm, R1700</td></tr><tr><td>Lamp tilt</td><td class="n">15°</td></tr><tr><td>Base plate / anchors</td><td class="n">330 × 330 mm, 4 bolts</td></tr><tr><td>PIR sensors</td><td class="n">6 × 60°, at 914 mm, recessed</td></tr><tr><td>Controller box (rear)</td><td class="n">220 × 300 × 120 mm</td></tr><tr><td>Box contents</td><td class="n">LED driver, sensor hub, comms, protection</td></tr><tr><td>Arm geometry modelled</td><td class="n">R1700 arc 75° + 249 mm straight</td></tr><tr><td>Shaft diameter</td><td class="n">114 mm <span class="tg np">Assumed</span></td></tr></table><div class="note">A true R1700 arc reaching 1500 mm out at a 15° end slope rises 1.71 m, not the 1300 mm shown on the drawing; the drawing's dimensions disagree with each other, so the radius was kept and the rise follows from it. Harbour pole positions are locked; the pole-spacing slider only moves standard lamps.</div>
+    <div class="note">Timing: the detecting pole goes to 100 % at once; neighbours follow in sequence 0.35 s per pole, then all return to the dimmed level after the delay. Smart poles only adapt at night (clock or lux switching on the Sensor tab). PIR range at 914 mm mounting height is not in the drawing; <b>needs a source</b>: the PIR module datasheet.</div>
+   </div>
+   <div id="m-uganda" class="sub-off">
+    <h4>Published control schedule <span class="tg pub">Ashraf.pdf · Ndaaru et al. 2021</span></h4>
+    <table class="tb" id="ugtab"></table>
+    <div class="card2"><div class="row"><span>Published traffic now</span><b class="mono" id="ugtr">—</b><span>Island simulated traffic now <span class="tg sim">Sim profile</span></span><b class="mono" id="ugisl">—</b><span>Commanded LED output</span><b class="mono" id="ugout">—</b><span>Estimated load now</span><b class="mono" id="ugload">—</b></div></div>
+    <div class="note">Fixed research schedule from Uganda Street, Addis Ababa. Applied to the harbour smart poles only, as a demonstration. It is not a verified island traffic profile and not a recommended schedule. Harbour lamps run 18:00–06:00 in this mode (clock switching), matching the study's 12-hour night; all other lamps are unchanged.</div>
+   </div>
+   <div id="m-ir" class="sub-off">
+    <h4>IR detection research demo <span class="tg pub">Nasih.pdf</span></h4>
+    <div class="seg" id="irsc"><button class="chip on" data-v="0">Closely spaced objects</button><button class="chip" data-v="1">Single moving object</button><button class="chip" data-v="2">Object at end of street</button></div>
+    <table class="tb" id="irtab"></table>
+    <div class="note">Nine harbour smart poles are grouped A, B and C (A at the west end) to replay the paper's ESP32 prototype scenarios. Group levels are the published commands, not a detection algorithm, and not validation of the six-PIR design. All non-harbour lamps are unchanged. The paper reports at least 48 % less wasted power for its prototype <span class="tg pub">Published result</span>. That figure is not measured here.</div>
+   </div>
+   <h4>Island lamp inputs</h4>
+   <div><div class="lab">LED lamp rating <span class="tg inp">Input</span> <b class="mono" id="vwatt">60 W</b></div><input type="range" id="watt" min="30" max="150" step="5" value="60"></div>
+   <div><div class="lab">Pole spacing (rebuilds lamp layout) <span class="tg inp">Input</span> <b class="mono" id="vspace">30 m</b></div><input type="range" id="space" min="20" max="50" step="5" value="30"></div>
+   <div class="note">60 W and 30 m are starting assumptions, not island survey data. Visual brightness in the 3D view is not a photometric road-illumination result.</div>
+  </section>
+
+  <!-- SENSOR -->
+  <section class="pane" id="p-sensor">
+   <div><div class="lab">Harbour smart lights switched by</div><div class="seg" id="swm"><button class="chip on" data-v="clock">Clock 17:45–05:45</button><button class="chip" data-v="lux20">20 lux threshold <span class="tg pub">Basith.pdf</span></button><button class="chip" data-v="ldr">LDR (conventional)</button></div></div>
+   <div><div class="lab">Ambient illumination source</div><div class="seg" id="amb"><button class="chip on" data-v="model">Sun model <span class="tg ill">Illustrative</span></button><button class="chip" data-v="manual">Manual input</button></div></div>
+   <div id="ambman" class="sub-off"><div class="lab">Ambient illumination <span class="tg inp">Input</span> <b class="mono" id="vamb">10 lx</b></div><input type="range" id="ambr" min="0" max="1000" step="1" value="333"></div>
+   <div class="note">Standard island lamps keep their clock schedule (17:45–05:45) whatever is chosen here. The virtual TEMT6000 has not measured real island illumination.</div>
+   <div id="stab" class="sub-off"><h4>Control-state stabilisation (harbour)</h4>
+    <div><div class="lab">Hysteresis band ± <span class="tg inp">Input</span> <b class="mono" id="vhys">2 lx</b></div><input type="range" id="hys" min="0" max="10" step=".5" value="2"></div>
+    <div><div class="lab">Minimum time before switching (sim time) <span class="tg inp">Input</span> <b class="mono" id="vdwell">60 s</b></div><input type="range" id="dwell" min="0" max="300" step="10" value="60"></div>
+    <div><div class="lab">Light fluctuation demo (cloud, glare) <b class="mono" id="vnoise">0 %</b></div><input type="range" id="noise" min="0" max="60" step="5" value="0"></div></div>
+   <div class="card2">
+    <div class="row"><span>Ambient now</span><b class="mono" id="sx_amb">—</b><span>Switching state</span><b id="sx_state">—</b></div>
+    <div class="note" id="sx_rule"></div>
+   </div>
+   <h4>TEMT6000 sensor inspection <span class="tg pub">Basith.pdf · Gören et al. 2024</span></h4>
+   <div><div class="lab">Diffuser configuration</div><div class="seg" id="diff"><button class="chip on" data-v="F1">F1 tape</button><button class="chip" data-v="F2">F2 hemisphere</button><button class="chip" data-v="F3">F3 flat plastic</button></div></div>
+   <div class="card2"><div class="row"><span>Simulated reading</span><b class="mono" id="tm_read">—</b><span>Sensor effective range 20–986 lx</span><b id="tm_rng">—</b><span>Diffuser tested region</span><b id="tm_dif">—</b></div><div class="note" id="tm_note"></div></div>
+   <table class="tb"><tr><th>Parameter</th><th>Research information</th></tr><tr><td>Sensor</td><td>Vishay TEMT6000</td></tr><tr><td>Peak spectral sensitivity</td><td>≈ 570 nm</td></tr><tr><td>Half-sensitivity angle</td><td>±60°</td></tr><tr><td>Signal conversion</td><td>10 kΩ resistor</td></tr><tr><td>Data acquisition / logging</td><td>Arduino Nano / LabVIEW</td></tr><tr><td>Reference instrument</td><td>Gigahertz-Optik BTS256</td></tr><tr><td>Effective range</td><td>≈ 20–986 lx</td></tr><tr><td>Dim-light test (F1)</td><td>9–90 lx, max difference 4 lx</td></tr></table>
+   <div class="note">The simulated reading is the ideal ambient value, shown only inside the published tested region. Outside it the panel reports "not validated" instead of a number. The 20 lux switching threshold is an Irish road-lighting reference cited in the paper. At exactly 20 lux the software keeps the previous state; that is a simulation choice, not a measured result. LDR is offered as a conventional option. The paper does not test LDRs against the TEMT6000, so no LDR accuracy, delay or drift figures are given. The LDR threshold below is your input.</div>
+   <div id="ldrbox" class="sub-off"><div class="lab">LDR switching threshold <span class="tg inp">Input</span> <b class="mono" id="vldr">20 lx</b></div><input type="range" id="ldr" min="5" max="100" step="1" value="20"></div>
+  </section>
+
+  <!-- ENERGY -->
+  <section class="pane" id="p-energy">
+   <div class="seg" id="eview"><button class="chip on" data-v="isl">Island scenario</button><button class="chip" data-v="res">Research benchmark</button></div>
+   <div id="e-isl" class="sub-on">
+    <div><div class="sub" id="etitle">Saving tonight vs LED at 100 %</div><div class="big" id="esave">—</div></div>
+    <div class="row"><span id="ealab">Selected mode</span><span class="mono" id="ea">0.0 kWh</span><div class="bar" style="grid-column:1/-1"><i id="eab" style="width:0;background:var(--mint)"></i></div></div>
+    <div class="row"><span>LED at 100 %</span><span class="mono" id="eb">0.0 kWh</span><div class="bar" style="grid-column:1/-1"><i id="ebb" style="width:0;background:#7e8f8c"></i></div></div>
+    <div class="row"><span>Conventional lamps</span><span class="mono" id="ec">Not Provided</span><div class="bar" style="grid-column:1/-1"><i id="ecb" style="width:0;background:#c98c84"></i></div></div>
+    <div class="card2"><div class="sub">Harbour smart zone only <span class="tg calc">Calculated</span></div><div class="row" id="hzE"></div></div>
+    <div class="kv">
+     <div><b id="kinst">0 kW</b><span>Installed LED power <span class="tg calc">Calc</span></span></div>
+     <div><b id="kload">0 kW</b><span>Present demand <span class="tg sim">Sim</span></span></div>
+     <div><b id="kdet">0</b><span>Detection events tonight</span></div>
+     <div><b id="klate">0</b><span>Late wake-ups</span></div>
+    </div>
+    <div><div class="lab">Network load tonight <span><i style="display:inline-block;width:10px;height:3px;background:#5ee6c3;vertical-align:3px"></i> selected &nbsp;<i style="display:inline-block;width:10px;height:3px;background:#8a9a97;vertical-align:3px"></i> 100 %</span></div><div class="fig"><canvas id="chart"></canvas></div></div>
+    <div class="card2"><div class="sub">Island annual energy using the research method <span class="tg calc">Calculated</span></div><div class="row" id="isann"></div><div class="note">Energy = installed load × dimming fraction × hours, per period, summed. Uses the island lamp count and rating with the Ashraf.pdf schedule as an example only.</div></div>
+    <div class="note" id="eyear"></div>
+    <div class="note">Simulation model: lamp power is proportional to commanded output; sensor modes add 1.5 W standby per sensing pole (assumption). Traffic, sensors, lamp timers and energy all advance on one simulated clock in steps of at most 0.5 s, so kWh figures are consistent at every speed. If a device can't keep up, the clock slows (shown as "running N×") rather than skipping updates.</div>
+   </div>
+   <div id="e-res" class="sub-off">
+    <h4>Uganda Street, Addis Ababa, Ethiopia <span class="tg pub">Ashraf.pdf</span></h4>
+    <table class="tb"><tr><td>Road length</td><td class="n">1.35 km</td></tr><tr><td>Existing HPS lights</td><td class="n">86</td></tr><tr><td>HPS input power</td><td class="n">169 W</td></tr><tr><td>LED alternatives</td><td class="n">87 W / 73 W</td></tr><tr><td>Operation</td><td class="n">12 h × 365 d</td></tr></table>
+    <table class="tb" id="ugbench"></table>
+    <div id="ugbars" style="display:grid;gap:6px"></div>
+    <div class="note" id="ugnote"></div>
+   </div>
+   <div class="seg"><button class="chip" id="cpcsv">Copy results (CSV)</button><button class="chip" id="cpjson">Copy inputs and assumptions (JSON)</button></div>
+  </section>
+
+  <!-- SOLAR -->
+  <section class="pane" id="p-solar">
+   <div><div class="lab">Harbour smart-pole supply</div><div class="seg" id="supply"><button class="chip on" data-v="grid">Grid (as built)</button><button class="chip" data-v="pv">What-if: PV for harbour poles <span class="tg pub">Nasih.pdf</span></button></div></div>
+   <svg class="flow" id="flow" viewBox="0 0 300 214" width="100%"></svg>
+   <div class="kv" id="pvkv"></div>
+   <div class="note" id="pvnote"></div>
+   <div class="seg" id="sview"><button class="chip on" data-v="isl">Island inputs</button><button class="chip" data-v="res">Research data</button></div>
+   <div id="s-isl" class="sub-on">
+    <div class="fields" id="fields"></div>
+    <div class="seg"><button class="chip" id="fillill">Fill illustrative values</button><button class="chip" id="clrin">Clear inputs</button></div>
+    <h4>Sizing with the published equations <span class="tg pub">Nasih.pdf</span></h4>
+    <div class="card2" id="sizing"></div>
+   </div>
+   <div id="s-res" class="sub-off">
+    <h4>Published configuration <span class="tg pub">Rebhi et al. 2025 · Bechar, Algeria</span></h4>
+    <table class="tb"><tr><td>LED streetlights</td><td class="n">36</td></tr><tr><td>PV module</td><td class="n">24 V / 335 W, 24 %</td></tr><tr><td>Inverter</td><td class="n">7 kW, 90 %</td></tr><tr><td>Battery autonomy / DOD</td><td class="n">1 day / 0.8</td></tr><tr><td>Temp. derating / PV temp. correction</td><td class="n">0.8 / 0.8</td></tr><tr><td>Additional DC pump</td><td class="n">12 V / 180 W</td></tr><tr><td>Control</td><td class="n">MPPT, fuzzy-PID EMS, PSO cost</td></tr></table>
+    <div><div class="lab">Monthly load (kWh) <span class="tg pub">Published</span></div><div class="fig" style="height:130px"><canvas id="mload"></canvas></div></div>
+    <div><div class="lab">PV modules and batteries <span><i style="display:inline-block;width:10px;height:8px;background:#8fb8ff"></i> modules &nbsp;<i style="display:inline-block;width:10px;height:8px;background:#5ee6c3"></i> batteries</span></div><div class="fig" style="height:130px"><canvas id="mqty"></canvas></div></div>
+    <h4>PSO cost function <span class="tg pub">C = cpv·Npv + cbat·Nbat + Cin</span></h4>
+    <div class="fld"><label>Research month <small>Npv, Nbat from the published table</small></label><select id="psomon"></select></div>
+    <div class="card2" id="pso"></div>
+    <div class="note">The PSO search itself is not re-run. Quantities come from the published monthly results; unit costs are your inputs (Island inputs view). The fuzzy-PID controller is not implemented; the island energy flow uses a simplified priority rule: charge the battery first, then run the pump on surplus.</div>
+   </div>
+  </section>
+
+  <!-- STRUCTURE -->
+  <section class="pane" id="p-struct">
+   <div class="row"><span>Selected pole</span><b id="stpole">Tap a lamp post</b></div>
+   <div class="seg" id="stview"><button class="chip on" data-v="har">Harbour smart pole</button><button class="chip" data-v="res">Research model <span class="tg pub">Fairooz.pdf</span></button></div>
+   <div id="st-har" class="sub-on">
+    <svg id="hsvg" viewBox="0 0 300 252" width="100%"></svg>
+    <table class="tb"><tr><th>Item</th><th class="n">Harbour pole</th></tr><tr><td>Height / material / wall</td><td class="n">6.0 m · S235 · 4.0 mm <span class="tg inp">Input</span></td></tr><tr><td>Base plate</td><td class="n">330 × 330 mm <span class="tg inp">Input</span></td></tr><tr><td>Plate thickness</td><td class="n"><span class="tg np">Not Provided</span></td></tr><tr><td>Anchor bolts</td><td class="n">4, holes Ø28 ("4–Ø28 × 56") <span class="tg inp">Input</span></td></tr><tr><td>Bolt grade, embedment</td><td class="n"><span class="tg np">Not Provided</span></td></tr><tr><td>Stiffeners</td><td class="n"><span class="tg np">Not Provided</span></td></tr><tr><td>Foundation</td><td class="n"><span class="tg np">Not Provided</span></td></tr><tr><td>Stress, fatigue, safety factor</td><td class="n"><span class="tg np">Not analysed</span></td></tr></table>
+    <button class="chip wide" id="stinsp">Close-up of the base in 3D</button>
+    <div class="note">Inspection drawing of the modelled base connection. The study's 9 m pole loading and fatigue results are not applied to this 6 m pole, and no foundation is changed or analysed. Stiffeners are not on the reference drawing, so none are modelled.</div>
+   </div>
+   <div id="st-res" class="sub-off">
+   <h4>Published ANSYS Research Results <span class="tg pub">Fairooz.pdf · Camara et al. 2026</span></h4>
+   <div><div class="lab">Anchor configuration</div><div class="seg" id="anch"><button class="chip on" data-v="4">4 anchor rods</button><button class="chip" data-v="3">3 rods (one missing)</button></div></div>
+   <div><div class="lab">Stiffener geometry</div><div class="seg" id="stif"><button class="chip on" data-v="1">Reference (1)</button><button class="chip" data-v="2">Geometry 2</button><button class="chip" data-v="3">Improved (3)</button></div></div>
+   <svg id="stsvg" viewBox="0 0 300 242" width="100%"></svg>
+   <div class="kv" id="stkv"></div>
+   <table class="tb"><tr><th>Output</th><th class="n">4 anchors</th><th class="n">3 anchors</th><th class="n">Stiffener 3</th></tr><tr><td>Pole-top displacement</td><td class="n">4.79 mm</td><td class="n">8.90 mm</td><td class="n">—</td></tr><tr><td>Equivalent stress</td><td class="n">128.42 MPa</td><td class="n">238.8 MPa</td><td class="n">119.73 MPa</td></tr><tr><td>Fatigue life</td><td class="n">748,000</td><td class="n">18,700</td><td class="n">957,000</td></tr></table>
+   <div class="note">Study model: 9 m pole, 400 × 400 × 10 mm base plate, four-rod reference, 17 m/s reference wind, ≈ 1.6 kN horizontal force. Losing one rod cut predicted fatigue life by ≈ 98 %; geometry 3 raised it ≈ 28 % over the reference. Stress colours are a simplified illustration of the published value. Stiffener shapes are schematic: the exact geometries are in the paper's figures. Geometry 2 results are not in the brief. The island poles in this model are 7.4 m and their base design, wind load and soil data are <span class="tg np">Not Provided</span>, so no island stress or fatigue life is calculated and these results do not show that any island pole is safe.</div>
+   </div>
+   <div class="note" id="stsmart"></div>
+  </section>
+
+  <!-- TRAFFIC -->
+  <section class="pane" id="p-traffic">
+   <div><div class="lab">Traffic density <span class="tg inp">Input</span> <b class="mono" id="vdens">100 %</b></div><input type="range" id="dens" min="25" max="200" step="25" value="100"></div>
+   <div class="kv">
+    <div><b id="nveh">0</b><span>Simulated vehicles</span></div>
+    <div><b id="nped">0</b><span>Walking / running</span></div>
+    <div><b id="ndet">0</b><span>Detection events (all modes)</span></div>
+    <div><b id="nact">0 %</b><span>Traffic activity <span class="tg sim">Sim profile</span></span></div>
+    <div style="grid-column:1/-1"><b id="ngrp">—</b><span>Active lighting groups (IR demo)</span></div>
+   </div>
+   <button class="chip" id="follow" style="min-height:44px">Follow a vehicle</button>
+   <div class="note">Keep-left traffic. Volumes follow an assumed daily profile (quiet after midnight, busiest in the evening); it is not island survey data. The two signalised junctions are a demo addition; the real island has no traffic lights.</div>
+  </section>
+
+  <!-- VIEW -->
+  <section class="pane" id="p-view">
+   <div class="seg"><button class="chip" id="vtour">Auto tour (rotate + zoom)</button><button class="chip" id="vover">Island overview</button><button class="chip" id="vstreet">Street level</button><button class="chip" id="vsat">Satellite view</button></div>
+   <div class="places" id="plist"></div>
+   <div class="fld"><label>Simulation date <small>Moves sunrise and sunset (5.9° N)</small></label><input type="date" id="date" value="2026-11-17"></div>
+   <div class="tog">High-detail graphics (shadows, more trees)<button class="sw" id="qsw" aria-label="High detail"></button></div>
+   <div class="note">Map outline traced from satellite and map views of R. Angolhitheemu. Road layout, buildings and trees are approximate. Island boundary and road editing are not yet available.</div>
+  </section>
+ </div>
+</aside>
+<div id="toast" class="glass"><div class="lab"><b id="tsttl">Copied</b><button class="chip" id="tstx">Close</button></div><textarea id="tsta" readonly></textarea></div>
+<div id="err"></div>
+
+<script type="module">
+{
+const errBox=document.getElementById('err');
+const showErr=m=>{errBox.style.display='block';errBox.textContent+=m+'\n'};
+window.addEventListener('error',e=>showErr(e.message));
+window.addEventListener('unhandledrejection',e=>showErr(String(e.reason)));
+try{
+const THREE=await import('three');
+const {MapControls}=await import('three/addons/controls/MapControls.js');
+const {mergeGeometries}=await import('three/addons/utils/BufferGeometryUtils.js');
+const $=s=>document.querySelector(s);
+const clamp=(v,a,b)=>v<a?a:v>b?b:v, lerp=(a,b,t)=>a+(b-a)*t, smooth=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t)};
+let rnd=(()=>{let s=20261117;return()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296}})();
+const R=(a,b)=>a+rnd()*(b-a);
+const isTouch=matchMedia('(pointer:coarse)').matches;
+let qStore=null;try{qStore=localStorage.getItem('angq')}catch(e){}
+const HQ=qStore?qStore==='high':!(isTouch||innerWidth<900);
+$('#qsw').classList.toggle('on',HQ);
+
+/* ---------- map geometry (traced from the screenshot, 1 px ≈ 1.6 m) ---------- */
+const S=1.6, wp=(px,py)=>[(px-400)*S,(py-600)*S];
+const ISL=[[258,298],[335,272],[345,300],[470,302],[492,330],[500,400],[540,520],[590,690],[615,820],[595,880],[530,928],[420,895],[330,862],[258,826],[232,770],[205,680],[180,575],[190,480],[210,400],[240,330]].map(p=>wp(...p));
+const BASIN=[[343,300],[343,230],[402,222],[446,224],[486,234],[476,304]].map(p=>wp(...p));
+function inPoly(p,poly){let c=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const a=poly[i],b=poly[j];if(((a[1]>p[1])!=(b[1]>p[1]))&&(p[0]<(b[0]-a[0])*(p[1]-a[1])/(b[1]-a[1])+a[0]))c=!c}return c}
+function dSeg(p,a,b){const dx=b[0]-a[0],dz=b[1]-a[1],l=dx*dx+dz*dz;let t=l?((p[0]-a[0])*dx+(p[1]-a[1])*dz)/l:0;t=clamp(t,0,1);return Math.hypot(p[0]-a[0]-dx*t,p[1]-a[1]-dz*t)}
+function dPoly(p,poly){let m=1e9;for(let i=0,j=poly.length-1;i<poly.length;j=i++)m=Math.min(m,dSeg(p,poly[i],poly[j]));return m}
+const coastD=p=>inPoly(p,ISL)?dPoly(p,ISL):-dPoly(p,ISL);
+
+/* road graph: skewed grid that follows the village street pattern */
+const O=[287,520],VA=[56.6,12.5],UB=[16.6,-42.9];
+const gp=(a,b)=>wp(O[0]+a*VA[0]+b*UB[0],O[1]+a*VA[1]+b*UB[1]);
+const N=[],E=[],nk={};
+function addNode(key,p){if(nk[key]!==undefined)return nk[key];const n={id:N.length,p,edges:[],busy:[],sig:null,r:7,key};N.push(n);nk[key]=n.id;return n.id}
+for(let a=-2;a<=4;a++)for(let b=0;b<=4;b++){const p=gp(a,b);if(coastD(p)>30)addNode(a+','+b,p)}
+for(const b of [-1,-2,-3,-3.7,4.8])addNode('0,'+b,gp(0,b));
+if(coastD(gp(-1,-1))>30)addNode('-1,-1',gp(-1,-1));
+addNode('qw',wp(322,316));addNode('qe',wp(458,322));
+function addEdge(k1,k2,axis,main,name){const A=N[nk[k1]],B=N[nk[k2]];if(!A||!B)return;const dx=B.p[0]-A.p[0],dz=B.p[1]-A.p[1],len=Math.hypot(dx,dz);
+ const e={id:E.length,a:A.id,b:B.id,len,d:[dx/len,dz/len],axis,main,w:main?9:6.5,lane:main?2.1:1.6,side:main?5.9:4.4,name};E.push(e);A.edges.push(e.id);B.edges.push(e.id)}
+for(let a=-2;a<=4;a++)for(let b=0;b<=4;b++){const k=a+','+b;if(nk[k]===undefined)continue;
+ if(nk[(a+1)+','+b]!==undefined)addEdge(k,(a+1)+','+b,'v',false,b===0?'Central road':'Street');
+ if(nk[a+','+(b+1)]!==undefined)addEdge(k,a+','+(b+1),'u',a===0,a===0?'Main road':'Lane')}
+addEdge('0,-3.7','0,-3','u',true,'Main road');addEdge('0,-3','0,-2','u',true,'Main road');addEdge('0,-2','0,-1','u',true,'Main road');addEdge('0,-1','0,0','u',true,'Main road');addEdge('0,4','0,4.8','u',true,'Main road');
+if(nk['-1,-1']!==undefined){addEdge('-1,-1','-1,0','u',false,'Lane');addEdge('-1,-1','0,-1','v',false,'Street')}
+addEdge('qw','0,4.8','q',false,'Harbour road');addEdge('0,4.8','qe','q',false,'Harbour road');addEdge('qw','-1,4','q',false,'Harbour road');addEdge('qe','2,4','q',false,'Beach road');
+for(const n of N){let mh=0;for(const id of n.edges)mh=Math.max(mh,E[id].w/2);n.mh=mh;n.r=mh+4.5}
+for(const k of ['0,0','0,2'])if(nk[k]!==undefined&&N[nk[k]].edges.length>=3)N[nk[k]].sig={ph:0,t:0};
+const SIGD=[14,3,1.5,12,3,1.5];
+const left=d=>[d[1],-d[0]], yawOf=d=>Math.atan2(-d[1],d[0]);
+const dirv=(e,dir)=>dir?[-e.d[0],-e.d[1]]:e.d;
+const startN=(e,dir)=>N[dir?e.b:e.a], endN=(e,dir)=>N[dir?e.a:e.b];
+function lanePos(e,dir,s,off){const st=startN(e,dir).p,d=dirv(e,dir),l=left(d);return[st[0]+d[0]*s+l[0]*off,st[1]+d[1]*s+l[1]*off]}
+
+/* hull of the village for ground painting and house placement */
+function hull(pts){pts=pts.slice().sort((a,b)=>a[0]-b[0]||a[1]-b[1]);const cr=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);const lo=[],up=[];for(const p of pts){while(lo.length>1&&cr(lo[lo.length-2],lo[lo.length-1],p)<=0)lo.pop();lo.push(p)}for(const p of pts.slice().reverse()){while(up.length>1&&cr(up[up.length-2],up[up.length-1],p)<=0)up.pop();up.push(p)}return lo.slice(0,-1).concat(up.slice(0,-1))}
+const VH=hull(N.filter(n=>!n.key.startsWith('0,-')||n.key==='0,-1').map(n=>n.p));
+const inVillage=p=>inPoly(p,VH)||dPoly(p,VH)<16;
+const FIELD={p:wp(305,605),w:100,d:64,yaw:yawOf([VA[0]/57.96,VA[1]/57.96])};
+const MOSQ=gp(1.5,2.5), CAFE=wp(308,405), HILL=wp(270,290), BEACH=wp(505,395), HARB=wp(410,262);
+const roadDist=p=>{let m=1e9;for(const e of E)m=Math.min(m,dSeg(p,N[e.a].p,N[e.b].p)-e.w/2);return m};
+
+/* ---------- renderer / scene ---------- */
+const canvas=$('#c');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,logarithmicDepthBuffer:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,HQ?2:1.5));
+renderer.setSize(innerWidth,innerHeight,false);
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.shadowMap.enabled=HQ;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+const scene=new THREE.Scene();
+scene.fog=new THREE.Fog(0x9fc8e8,900,5200);
+const camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,0.5,9000);
+const controls=new MapControls(camera,canvas);
+controls.enableDamping=true;controls.dampingFactor=.08;controls.screenSpacePanning=false;controls.zoomToCursor=true;
+controls.minDistance=10;controls.maxDistance=2600;controls.maxPolarAngle=Math.PI*.46;
+const C=h=>new THREE.Color(h);
+
+/* sky dome */
+const skyU={top:{value:C(0x2e78d0)},hor:{value:C(0xa8cdeb)},sunC:{value:C(0xffffff)},sunD:{value:new THREE.Vector3(0,1,0)},sunV:{value:1},camP:{value:new THREE.Vector3()}};
+const sky=new THREE.Mesh(new THREE.SphereGeometry(5000,32,16),new THREE.ShaderMaterial({uniforms:skyU,side:THREE.BackSide,depthWrite:false,depthTest:false,fog:false,toneMapped:false,
+ vertexShader:'varying vec3 vW;void main(){vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}',
+ fragmentShader:'uniform vec3 top,hor,sunC,sunD,camP;uniform float sunV;varying vec3 vW;void main(){vec3 d=normalize(vW-camP);float h=max(d.y,0.);vec3 c=mix(hor,top,pow(h,.5));if(d.y<0.)c=hor*.85;float s=max(dot(d,sunD),0.);c+=sunC*(pow(s,900.)*6.+pow(s,10.)*.3)*sunV;gl_FragColor=vec4(c,1.);\n#include <colorspace_fragment>\n}'}));
+sky.renderOrder=-10;sky.frustumCulled=false;scene.add(sky);
+const starG=new THREE.BufferGeometry(),sp=[];for(let i=0;i<1800;i++){const t=R(0,Math.PI*2),y=R(.04,1),r=Math.sqrt(1-y*y);sp.push(Math.cos(t)*r*4600,y*4600,Math.sin(t)*r*4600)}
+starG.setAttribute('position',new THREE.Float32BufferAttribute(sp,3));
+const starM=new THREE.PointsMaterial({color:0xffffff,size:1.7,sizeAttenuation:false,transparent:true,opacity:0,depthWrite:false,fog:false});
+const stars=new THREE.Points(starG,starM);stars.frustumCulled=false;scene.add(stars);
+
+const sun=new THREE.DirectionalLight(0xffffff,3);scene.add(sun,sun.target);
+sun.castShadow=HQ;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-170,right:170,top:170,bottom:-170,near:1,far:1400});sun.shadow.bias=-.0004;sun.shadow.normalBias=.4;
+const moon=new THREE.DirectionalLight(0x9db4ff,0);moon.position.set(-300,500,200);scene.add(moon);
+const hemi=new THREE.HemisphereLight(0xbfdfff,0x4a4030,1);scene.add(hemi);
+const NPL=0,/* no per-lamp scene lights: every lamp is drawn the same way (pool + glow) at every zoom */ plights=[];for(let i=0;i<NPL;i++){const l=new THREE.PointLight(0xffd9a0,0,34,2);scene.add(l);plights.push(l)}
+
+/* canvas textures */
+function radialTex(stops,size=128){const c=document.createElement('canvas');c.width=c.height=size;const g=c.getContext('2d');const gr=g.createRadialGradient(size/2,size/2,0,size/2,size/2,size/2);for(const [o,col] of stops)gr.addColorStop(o,col);g.fillStyle=gr;g.fillRect(0,0,size,size);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t}
+const poolTex=radialTex([[0,'rgba(255,255,255,1)'],[.35,'rgba(255,255,255,.55)'],[1,'rgba(255,255,255,0)']]);
+const glowTex=radialTex([[0,'rgba(255,255,255,1)'],[.15,'rgba(255,255,255,.7)'],[.45,'rgba(255,255,255,.12)'],[1,'rgba(255,255,255,0)']],64);
+function waterNormal(){const n=256,c=document.createElement('canvas');c.width=c.height=n;const g=c.getContext('2d'),im=g.createImageData(n,n),h=new Float32Array(n*n);
+ const waves=[];for(let i=0;i<9;i++)waves.push([Math.round(R(1,7))*(rnd()<.5?-1:1),Math.round(R(1,7)),R(0,6.28),R(.3,1)]);
+ for(let y=0;y<n;y++)for(let x=0;x<n;x++){let v=0;for(const [fx,fy,ph,a] of waves)v+=a*Math.sin((fx*x+fy*y)/n*6.2832+ph);h[y*n+x]=v}
+ for(let y=0;y<n;y++)for(let x=0;x<n;x++){const dx=h[y*n+(x+1)%n]-h[y*n+(x+n-1)%n],dy=h[((y+1)%n)*n+x]-h[((y+n-1)%n)*n+x];let nx=-dx*1.6,ny=-dy*1.6,nz=1;const l=Math.hypot(nx,ny,nz);const i=(y*n+x)*4;im.data[i]=(nx/l*.5+.5)*255;im.data[i+1]=(ny/l*.5+.5)*255;im.data[i+2]=(nz/l*.5+.5)*255;im.data[i+3]=255}
+ g.putImageData(im,0,0);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;return t}
+
+/* sea, reef, harbour basin, beach, land */
+const wn=waterNormal();wn.repeat.set(90,90);
+const ocean=new THREE.Mesh(new THREE.PlaneGeometry(12000,12000).rotateX(-Math.PI/2),new THREE.MeshStandardMaterial({color:0x0a5a82,roughness:.18,metalness:.05,normalMap:wn,normalScale:new THREE.Vector2(.6,.6)}));
+ocean.position.y=-1.4;scene.add(ocean);
+function shapeMesh(poly,mat,y,sx=1,sz=1,uvFn){const sh=new THREE.Shape(poly.map(p=>new THREE.Vector2(p[0]*sx,-p[1]*sz)));const g=new THREE.ShapeGeometry(sh,1);
+ if(uvFn){const pa=g.attributes.position,uv=g.attributes.uv;for(let i=0;i<pa.count;i++){const r=uvFn(pa.getX(i),-pa.getY(i));uv.setXY(i,r[0],r[1])}}
+ g.rotateX(-Math.PI/2);const m=new THREE.Mesh(g,mat);m.position.y=y;scene.add(m);return m}
+const wn2=wn.clone();wn2.repeat.set(30,30);wn2.needsUpdate=true;
+const reef=shapeMesh(ISL,new THREE.MeshStandardMaterial({color:0x2fb9bf,roughness:.35,transparent:true,opacity:.92,normalMap:wn2,normalScale:new THREE.Vector2(.25,.25)}),-.8,1.42,1.3);
+const reefEdge=shapeMesh(ISL,new THREE.MeshStandardMaterial({color:0x8fe3dc,roughness:.5,transparent:true,opacity:.5}),-.9,1.48,1.36);
+shapeMesh(BASIN,new THREE.MeshStandardMaterial({color:0x0d6a88,roughness:.2,normalMap:wn2,normalScale:new THREE.Vector2(.3,.3)}),-.55);
+shapeMesh(ISL,new THREE.MeshStandardMaterial({color:0xe9dfbf,roughness:.95}),-.05,1.035,1.03).receiveShadow=true;
+let bb={x0:1e9,x1:-1e9,z0:1e9,z1:-1e9};for(const p of ISL){bb.x0=Math.min(bb.x0,p[0]);bb.x1=Math.max(bb.x1,p[0]);bb.z0=Math.min(bb.z0,p[1]);bb.z1=Math.max(bb.z1,p[1])}
+function landTexture(){const c=document.createElement('canvas'),T=1024;c.width=c.height=T;const g=c.getContext('2d');
+ const tx=x=>(x-bb.x0)/(bb.x1-bb.x0)*T, tz=z=>(z-bb.z0)/(bb.z1-bb.z0)*T;
+ const path=poly=>{g.beginPath();poly.forEach((p,i)=>i?g.lineTo(tx(p[0]),tz(p[1])):g.moveTo(tx(p[0]),tz(p[1])));g.closePath()};
+ g.fillStyle='#e6dbb9';g.fillRect(0,0,T,T);g.save();path(ISL);g.clip();g.fillStyle='#43622c';g.fillRect(0,0,T,T);
+ for(let i=0;i<3200;i++){const r=rnd();g.fillStyle=`rgba(${25+r*40|0},${60+r*50|0},${20+r*25|0},.35)`;g.beginPath();g.arc(R(0,T),R(0,T),R(3,14),0,7);g.fill()}
+ g.fillStyle='#d4c69c';g.strokeStyle='#d4c69c';g.lineJoin='round';g.lineWidth=36;path(VH);g.fill();g.stroke();
+ for(let i=0;i<2600;i++){const p=[R(bb.x0,bb.x1),R(bb.z0,bb.z1)];if(!inVillage(p))continue;const r=rnd();g.fillStyle=r<.5?'rgba(160,150,110,.25)':'rgba(120,140,80,.22)';g.beginPath();g.arc(tx(p[0]),tz(p[1]),R(2,7),0,7);g.fill()}
+ g.lineWidth=16;g.strokeStyle='#e6dbb9';path(ISL);g.stroke();g.restore();
+ const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;return t}
+const land=shapeMesh(ISL,new THREE.MeshStandardMaterial({map:landTexture(),roughness:.95}),.12,1,1,(x,z)=>[(x-bb.x0)/(bb.x1-bb.x0),1-(z-bb.z0)/(bb.z1-bb.z0)]);
+land.receiveShadow=true;
+
+/* geometry helper: transformed, vertex-coloured part */
+const _e=new THREE.Euler(),_qq=new THREE.Quaternion();
+function P(geo,col,t=[0,0,0],r=[0,0,0],s=[1,1,1]){const g=geo.index?geo.toNonIndexed():geo;g.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(...t),_qq.setFromEuler(_e.set(...r)),new THREE.Vector3(...s)));
+ const c=C(col),n=g.attributes.position.count,a=new Float32Array(n*3);for(let i=0;i<n;i++){a[i*3]=c.r;a[i*3+1]=c.g;a[i*3+2]=c.b}g.setAttribute('color',new THREE.BufferAttribute(a,3));return g}
+const MG=(...g)=>mergeGeometries(g,false);
+const Box=(x,y,z)=>new THREE.BoxGeometry(x,y,z), Cyl=(a,b,h,s=10)=>new THREE.CylinderGeometry(a,b,h,s), Sph=(r,w=10,h=8)=>new THREE.SphereGeometry(r,w,h);
+const VC=(o={})=>new THREE.MeshStandardMaterial(Object.assign({vertexColors:true,roughness:.8},o));
+function IM(geo,mat,n,shadow=false){const m=new THREE.InstancedMesh(geo,mat,n);m.frustumCulled=false;m.castShadow=shadow&&HQ;m.receiveShadow=HQ&&shadow;m.count=0;scene.add(m);return m}
+const _m=new THREE.Matrix4(),_m2=new THREE.Matrix4(),_p=new THREE.Vector3(),_q=new THREE.Quaternion(),_q2=new THREE.Quaternion(),_s=new THREE.Vector3(),_Y=new THREE.Vector3(0,1,0),_Z=new THREE.Vector3(0,0,1),_c=new THREE.Color();
+function setM(mesh,i,x,y,z,yaw,sx=1,sy=1,sz=1){_p.set(x,y,z);_q.setFromAxisAngle(_Y,yaw);_s.set(sx,sy,sz);_m.compose(_p,_q,_s);mesh.setMatrixAt(i,_m)}
+
+/* roads, junctions, markings */
+{const gm=[],gs=[],mk=[];
+ for(const e of E){const A=N[e.a].p,mid=[(A[0]+N[e.b].p[0])/2,(A[1]+N[e.b].p[1])/2],y=yawOf(e.d);
+  (e.main?gm:gs).push(P(new THREE.PlaneGeometry(e.len,e.w).rotateX(-Math.PI/2),0xffffff,[mid[0],0,mid[1]],[0,y,0]));
+  if(e.main){for(const o of [-1,1])mk.push(P(new THREE.PlaneGeometry(e.len-2*N[e.a].r,.18).rotateX(-Math.PI/2),0xe8e8e0,[mid[0]+left(e.d)[0]*o*(e.w/2-.4),.02,mid[1]+left(e.d)[1]*o*(e.w/2-.4)],[0,y,0]));
+   const dl=e.len-N[e.a].r-N[e.b].r;for(let s=N[e.a].r+2;s<e.len-N[e.b].r-2;s+=7){const p=[A[0]+e.d[0]*s,A[1]+e.d[1]*s];mk.push(P(new THREE.PlaneGeometry(3,.16).rotateX(-Math.PI/2),0xf2d06b,[p[0],.02,p[1]],[0,y,0]))}}}
+ for(const n of N){const main=n.edges.some(id=>E[id].main);(main?gm:gs).push(P(new THREE.CircleGeometry(n.mh+1.2,20).rotateX(-Math.PI/2),0xffffff,[n.p[0],.005,n.p[1]]));
+  if(n.sig)for(const id of n.edges){const e=E[id],dIn=e.b===n.id?e.d:[-e.d[0],-e.d[1]],back=[-dIn[0],-dIn[1]],l=left(dIn),y=yawOf(dIn);
+   for(let k=-e.w/2+.7;k<=e.w/2-.6;k+=1.1){const s=n.mh+2.1,p=[n.p[0]+back[0]*s+l[0]*k,n.p[1]+back[1]*s+l[1]*k];mk.push(P(new THREE.PlaneGeometry(2.6,.55).rotateX(-Math.PI/2),0xf4f4ee,[p[0],.02,p[1]],[0,y,0]))}
+   const s=n.r-.3,p=[n.p[0]+back[0]*s+l[0]*e.w/4,n.p[1]+back[1]*s+l[1]*e.w/4];mk.push(P(new THREE.PlaneGeometry(.4,e.w/2-.3).rotateX(-Math.PI/2),0xffffff,[p[0],.02,p[1]],[0,y,0]))}}
+ const rm=new THREE.Mesh(MG(...gm),new THREE.MeshStandardMaterial({color:0x3b3f44,roughness:.9}));rm.position.y=.3;rm.receiveShadow=true;scene.add(rm);
+ const rs=new THREE.Mesh(MG(...gs),new THREE.MeshStandardMaterial({color:0x8a857b,roughness:.95}));rs.position.y=.28;rs.receiveShadow=true;scene.add(rs);
+ const mm=new THREE.Mesh(MG(...mk),new THREE.MeshStandardMaterial({vertexColors:true,roughness:.7}));mm.position.y=.31;scene.add(mm)}
+
+/* landmarks: harbour, breakwaters, quay, mosque, café, field, hill, boats */
+{const rock=[],arms=[[[343,300],[343,230],[402,222]],[[476,304],[486,234],[446,224]]];
+ for(const arm of arms)for(let i=0;i<arm.length-1;i++){const a=wp(...arm[i]),b=wp(...arm[i+1]),dx=b[0]-a[0],dz=b[1]-a[1],l=Math.hypot(dx,dz);rock.push(P(Box(l+6,2.6,8),0x8a857a,[(a[0]+b[0])/2,.4,(a[1]+b[1])/2],[0,Math.atan2(-dz,dx),0]))}
+ const q1=wp(345,301),q2=wp(476,303);rock.push(P(Box(Math.hypot(q2[0]-q1[0],q2[1]-q1[1]),1.2,4),0xc9c3b6,[(q1[0]+q2[0])/2,.3,(q1[1]+q2[1])/2],[0,Math.atan2(-(q2[1]-q1[1]),q2[0]-q1[0]),0]));
+ const r=new THREE.Mesh(MG(...rock),VC({flatShading:true}));r.castShadow=r.receiveShadow=HQ;scene.add(r);
+ const gy=FIELD.yaw,fg=[P(new THREE.PlaneGeometry(FIELD.w,FIELD.d).rotateX(-Math.PI/2),0x4f9a3c,[0,0,0])];
+ const ln=(w,d,x,z)=>fg.push(P(new THREE.PlaneGeometry(w,d).rotateX(-Math.PI/2),0xf5f5f0,[x,.03,z]));
+ ln(FIELD.w-6,.25,0,-FIELD.d/2+3);ln(FIELD.w-6,.25,0,FIELD.d/2-3);ln(.25,FIELD.d-6,-FIELD.w/2+3,0);ln(.25,FIELD.d-6,FIELD.w/2-3,0);ln(.25,FIELD.d-6,0,0);
+ for(const sx of [-1,1])fg.push(P(Box(.2,2.4,7.3),0xffffff,[sx*(FIELD.w/2-3),1.2,0]));
+ const f=new THREE.Mesh(MG(...fg),VC());f.position.set(FIELD.p[0],.2,FIELD.p[1]);f.rotation.y=gy;f.receiveShadow=HQ;scene.add(f);
+ const my=gy,mo=[P(Box(22,7,17),0xf4f2ea,[0,3.5,0]),P(Sph(5.5,20,10).toNonIndexed(),0x2e8c80,[0,7,0],[0,0,0],[1,.85,1]),P(Cyl(1,1.3,20,10),0xf4f2ea,[9,10,6.5]),P(new THREE.ConeGeometry(1.3,3,10),0x2e8c80,[9,21.5,6.5]),P(Box(22.4,.6,17.4),0xd8d3c4,[0,7.2,0])];
+ const m=new THREE.Mesh(MG(...mo),VC({roughness:.6}));m.position.set(MOSQ[0],.2,MOSQ[1]);m.rotation.y=my;m.castShadow=m.receiveShadow=HQ;scene.add(m);
+ const ca=[P(Box(11,3.6,8),0xfff3e0,[0,1.8,0]),P(Box(12.5,.4,10),0xf08a2c,[0,3.8,0]),P(Box(4,1.2,.3),0xf08a2c,[0,3,4.2])];
+ const cm=new THREE.Mesh(MG(...ca),VC());cm.position.set(CAFE[0],.2,CAFE[1]);cm.rotation.y=my;cm.castShadow=HQ;scene.add(cm);
+ const hill=new THREE.Mesh(new THREE.ConeGeometry(30,7,28,1),new THREE.MeshStandardMaterial({color:0xcfc29a,roughness:1,flatShading:true}));hill.position.set(HILL[0],3.2,HILL[1]);hill.receiveShadow=HQ;scene.add(hill)}
+const boats=[];{const hullG=MG(P(Box(11,1.3,3.2),0xf7f7f2,[0,.65,0]),P(new THREE.ConeGeometry(1.6,3,4).rotateZ(-Math.PI/2).rotateX(Math.PI/4),0xf7f7f2,[6.9,.8,0],[0,0,0],[1,.6,1]),P(Box(11.1,.3,3.25),0x1f6fb2,[0,1.0,0]),P(Box(4.2,1.7,2.6),0xffffff,[-1.6,2.1,0]),P(Box(4.6,.2,3),0x1f6fb2,[-1.6,3.05,0]));
+ const hm=VC({roughness:.5});for(const [px,py,yw] of [[372,262,.2],[418,250,-.1],[452,272,.5],[398,286,0],[440,288,-.3]]){const p=wp(px,py),b=new THREE.Mesh(hullG,hm);b.position.set(p[0],-.6,p[1]);b.rotation.y=yw;b.castShadow=HQ;scene.add(b);boats.push(b)}}
+/* vessel routes: dock → basin → breakwater gap → sea → back to dock (px coords from the map) */
+const V3=(px,py)=>{const w=wp(px,py);return new THREE.Vector3(w[0],0,w[1])};
+const sc=(i)=>{const q=[[258,298],[335,272],[345,300],[470,302],[492,330],[500,400],[540,520],[590,690],[615,820],[595,880],[530,928],[420,895],[330,862],[258,826],[232,770],[205,680],[180,575],[190,480],[210,400],[240,330]][i];return[400+(q[0]-400)*1.7,600+(q[1]-600)*1.5]};
+const OUT=[[424,240],[424,222],[424,186]],IN=OUT.slice().reverse();
+const tourCW=[3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,0,1].map(sc).concat([[380,168]]);
+const ROUTES=[
+ {dock:[372,282],via:[[392,266]],trip:tourCW,label:'Island tour (clockwise)'},
+ {dock:[452,284],via:[[440,262]],trip:[[380,168]].concat(tourCW.slice(0,-1).reverse()),label:'Island tour (anticlockwise)'},
+ {dock:[398,290],via:[[408,264]],trip:[[330,120],[220,70],[130,140],[200,200],[330,175]],label:'Fishing run north-west'},
+ {dock:[440,268],via:[[432,250]],trip:[[520,120],[660,140],[700,240],[600,230],[510,185]],label:'Fishing run north-east'},
+ {loop:[[380,250],[430,244],[468,262],[466,288],[420,294],[372,292],[358,268]],label:'Harbour manoeuvring'}];
+const wakeMat=new THREE.MeshBasicMaterial({map:poolTex,transparent:true,depthWrite:false,color:0xffffff,opacity:.5});
+const vessels=ROUTES.map((r,i)=>{const pts=r.loop?r.loop.map(q=>V3(...q)):[r.dock,...r.via,...OUT,...r.trip,...IN,...r.via.slice().reverse(),r.dock].map(q=>V3(...q));
+ const curve=new THREE.CatmullRomCurve3(pts,!!r.loop,'centripetal'),L=curve.getLength();
+ const wake=new THREE.Mesh(new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2),wakeMat.clone());wake.position.y=-.35;scene.add(wake);
+ return{b:boats[i],curve,L,loop:!!r.loop,s:[.12,.55,0,.3,0][i]*L,wait:[0,0,12,0,0][i],v:0,wake,label:r.label}});
+function boatStep(dt){vessels.forEach((V,i)=>{const b=V.b;let vt=0;
+  if(V.wait>0){V.wait-=dt}else{const u=V.s/V.L,p=V.curve.getPointAt(Math.min(u,1)),inHarb=p.x>-96&&p.x<144&&p.z>-616&&p.z<-472;vt=inHarb?2.4:6.5;if(!V.loop&&(V.s<12||V.L-V.s<14))vt=1.2}
+  V.v+=clamp(vt-V.v,-1.2*dt,.8*dt);V.s+=V.v*dt;
+  if(V.loop)V.s%=V.L;else if(V.s>=V.L){V.s=0;V.v=0;V.wait=20+(i*7)%15}
+  const u=Math.min(V.s/V.L,1),p=V.curve.getPointAt(u),t=V.curve.getTangentAt(u);
+  b.position.x=p.x;b.position.z=p.z;b.position.y=-.6+Math.sin(vT*1.3+i)*.15;
+  const yaw=Math.atan2(-t.z,t.x);let dy=yaw-b.rotation.y;dy=Math.atan2(Math.sin(dy),Math.cos(dy));b.rotation.y+=dy*Math.min(1,dt*3);b.rotation.z=Math.sin(vT*.9+i*2)*.03;
+  const k=clamp(V.v/6.5,0,1),c=Math.cos(b.rotation.y),sn=-Math.sin(b.rotation.y);V.wake.position.x=p.x-c*(7+6*k);V.wake.position.z=p.z-sn*(7+6*k);V.wake.rotation.y=b.rotation.y;V.wake.scale.set(4+16*k,1,3+3*k);V.wake.material.opacity=.55*k;V.wake.visible=k>.05})}
+/* street lamp posts (rebuildable for spacing changes) */
+const PMAX=700;let poles=[];
+const poleGeo=MG(P(Cyl(.09,.13,7.4,8),0x8a9096,[0,3.7,0]),P(Box(1.95,.08,.08),0x8a9096,[.95,7.25,0]),P(Box(.75,.16,.34),0x5d6368,[1.85,7.22,0]),P(Box(.42,.3,.42),0x6b7075,[0,.15,0]),P(Box(.18,.14,.14),0x2a2f33,[.3,6.9,0]));
+const poleM=IM(poleGeo,VC({roughness:.5,metalness:.3}),PMAX,true);
+const bulbM=IM(new THREE.BoxGeometry(.6,.05,.26).translate(1.85,7.08,0),new THREE.MeshBasicMaterial({toneMapped:false}),PMAX);
+const poolM=IM(new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({map:poolTex,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false}),PMAX);
+const ringM=IM(new THREE.RingGeometry(.982,1,72).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({transparent:true,opacity:.85,depthWrite:false,toneMapped:false}),PMAX);
+for(let i=0;i<PMAX;i++){bulbM.setColorAt(i,_c.setScalar(.2));poolM.setColorAt(i,_c.setScalar(0));ringM.setColorAt(i,_c.setScalar(0))}
+const glowG=new THREE.BufferGeometry();glowG.setAttribute('position',new THREE.Float32BufferAttribute(new Float32Array(PMAX*3),3));glowG.setAttribute('color',new THREE.Float32BufferAttribute(new Float32Array(PMAX*3),3));
+const glow=new THREE.Points(glowG,new THREE.PointsMaterial({size:9,map:glowTex,vertexColors:true,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false}));glow.frustumCulled=false;scene.add(glow);
+const selRing=new THREE.Mesh(new THREE.RingGeometry(2.4,3.1,40).rotateX(-Math.PI/2),new THREE.MeshBasicMaterial({color:0x5ee6c3,toneMapped:false,transparent:true,depthWrite:false}));selRing.visible=false;scene.add(selRing);
+/* ===== HarbourZoneRegistry: the only poles the smart controller may touch (selected by road membership, never by distance to the coast) ===== */
+const HZR={zone:'HARBOUR_ROAD',type:'SMART_ADAPTIVE',edges:new Set(E.filter(e=>e.name==='Harbour road').map(e=>e.id)),spacing:30,snap:null,
+ list:()=>poles.filter(p=>p.lightingType==='SMART_ADAPTIVE')};
+/* ===== SmartPoleVisual: reference drawing (6.0 m, S235, 4 mm wall, 1500 mm arm on a true R1700 arc, 15° lamp tilt, 330 × 330 plate, 4 bolts, 6 PIR at 914 mm, rear box) ===== */
+const SM={r:.057,rin:.053,pir:.914,boxY:.62,tilt:15*Math.PI/180,R:1.7,arc:75*Math.PI/180};
+SM.L=(1.5-SM.R*(1-Math.cos(SM.arc)))/Math.sin(SM.arc);SM.y0=6.0-(SM.R*Math.sin(SM.arc)+SM.L*Math.cos(SM.arc));
+let xray=false,smartGroup=null;
+const smartShaftMat=new THREE.MeshStandardMaterial({color:0xb7bec3,metalness:.55,roughness:.42,side:THREE.DoubleSide});
+const smartFixMat=VC({metalness:.35,roughness:.5}),smartWireMat=VC({roughness:.6});
+const OC=(r1,r2,h,s=24)=>new THREE.CylinderGeometry(r1,r2,h,s,1,true);
+const smartShaftGeo=(()=>{const pts=[new THREE.Vector3(0,SM.y0-.25,0)];for(let i=0;i<=24;i++){const f=i/24*SM.arc;pts.push(new THREE.Vector3(SM.R*(1-Math.cos(f)),SM.y0+SM.R*Math.sin(f),0))}
+ const e=pts.at(-1).clone(),d=new THREE.Vector3(Math.sin(SM.arc),Math.cos(SM.arc),0);for(let i=1;i<=3;i++)pts.push(e.clone().addScaledVector(d,SM.L*i/3));
+ const arm=new THREE.CatmullRomCurve3(pts,false,'centripetal'),H=SM.y0-.15;
+ return MG(P(OC(SM.r,SM.r,H),0xffffff,[0,H/2,0]),P(OC(SM.rin,SM.rin,H),0xffffff,[0,H/2,0]),P(OC(.045,SM.r,.15),0xffffff,[0,SM.y0-.075,0]),P(new THREE.TubeGeometry(arm,48,.045,12,false),0xffffff))})();
+const SMH=[1.5+.3*Math.cos(SM.tilt),6.0+.3*Math.sin(SM.tilt)];
+const smartFixGeo=(()=>{const g=[],bx=-(SM.r+.068);g.push(P(Box(.33,.02,.33),0x9aa1a6,[0,.01,0]));
+ for(const [x,z] of [[.125,.125],[-.125,.125],[.125,-.125],[-.125,-.125]]){g.push(P(Cyl(.014,.014,.08,8),0x8b9196,[x,.05,z]));g.push(P(Cyl(.025,.025,.022,6),0x6f767b,[x,.032,z]))}
+ g.push(P(Cyl(.075,.09,.06,20),0xa5acb1,[0,.05,0]),P(Cyl(SM.r+.009,SM.r+.009,.075,24),0xc4cacd,[0,SM.pir,0]));
+ for(let k=0;k<6;k++){const a=k*Math.PI/3,R=SM.r+.009;g.push(P(Cyl(.016,.016,.006,16),0x3b4247,[Math.cos(a)*R,SM.pir,-Math.sin(a)*R],[0,a,-Math.PI/2]))}
+ g.push(P(Box(.66,.075,.26),0x9aa2a8,[SMH[0],SMH[1],0],[0,0,SM.tilt]));
+ g.push(P(Box(.12,.30,.22),0xc9cdd0,[bx,SM.boxY,0]),P(Box(.004,.27,.19),0xaeb3b6,[bx-.061,SM.boxY,0]),P(Cyl(.009,.009,.012,10),0x55595c,[bx-.066,SM.boxY+.02,.07],[0,0,Math.PI/2]));
+ for(const y of [SM.boxY-.11,SM.boxY+.11])g.push(P(new THREE.TorusGeometry(SM.r+.004,.005,6,24),0x8d9396,[0,y,0],[Math.PI/2,0,0]),P(Box(.03,.02,.24),0x8d9396,[-(SM.r+.012),y,0]));
+ const cc=new THREE.CatmullRomCurve3([new THREE.Vector3(bx,SM.boxY-.15,0),new THREE.Vector3(bx,.3,0),new THREE.Vector3(bx+.02,.12,.06),new THREE.Vector3(-.09,.03,.1)]);g.push(P(new THREE.TubeGeometry(cc,16,.012,8,false),0x1a1c1e));
+ return MG(...g)})();
+const smartWireGeo=(()=>{const g=[];[0x2457d6,0xe8c21a,0x7a4a22].forEach((c,i)=>{const o=(i-1)*.012,cv=new THREE.CatmullRomCurve3([new THREE.Vector3(.035,SM.pir,o),new THREE.Vector3(0,SM.pir-.07,o),new THREE.Vector3(0,SM.boxY+.06,o),new THREE.Vector3(-SM.r-.012,SM.boxY,o)]);g.push(P(new THREE.TubeGeometry(cv,14,.0045,6,false),c))});
+ g.push(P(new THREE.TorusGeometry(SM.rin-.003,.004,6,24),0x666c70,[0,SM.pir,0],[Math.PI/2,0,0]));return MG(...g)})();
+const smartBulbGeo=new THREE.BoxGeometry(.52,.012,.2),smartDomeGeo=new THREE.SphereGeometry(.0085,12,8,0,Math.PI*2,0,Math.PI/2);
+let fanGeo=null,fanR=8;function makeFanGeo(range,minD,fov){if(fanGeo)fanGeo.dispose();const f=fov*Math.PI/180;fanGeo=new THREE.RingGeometry(Math.min(.95,minD/Math.max(range,.1)),1,16,1,-f/2,f).rotateX(-Math.PI/2);return fanGeo}
+makeFanGeo(8,.5,60);
+function buildSmart(){if(smartGroup){scene.remove(smartGroup);smartGroup.traverse(o=>{if(o.userData.own)o.material.dispose()})}smartGroup=new THREE.Group();scene.add(smartGroup);
+ for(const p of HZR.list()){const g=new THREE.Group();g.position.set(p.base[0],.2,p.base[1]);g.rotation.y=p.yaw;
+  const sh=new THREE.Mesh(smartShaftGeo,smartShaftMat),fx=new THREE.Mesh(smartFixGeo,smartFixMat),wr=new THREE.Mesh(smartWireGeo,smartWireMat);sh.castShadow=fx.castShadow=HQ;wr.visible=xray;
+  const bm=new THREE.MeshBasicMaterial({toneMapped:false,color:0x383a3c}),b=new THREE.Mesh(smartBulbGeo,bm);b.userData.own=true;b.position.set(SMH[0],SMH[1]-.045,0);b.rotation.z=SM.tilt;
+  p.domes=[];p.fans=[];for(let k=0;k<6;k++){const a=k*Math.PI/3,R=SM.r+.012,m=new THREE.Mesh(smartDomeGeo,new THREE.MeshStandardMaterial({color:0xf4f6f7,roughness:.2,emissive:0}));m.userData.own=true;m.position.set(Math.cos(a)*R,SM.pir,-Math.sin(a)*R);m.rotation.set(0,a,-Math.PI/2);g.add(m);p.domes.push(m);
+   const fm=new THREE.Mesh(fanGeo,new THREE.MeshBasicMaterial({color:0x2b8a7a,transparent:true,opacity:.18,depthWrite:false,toneMapped:false,side:THREE.DoubleSide}));fm.userData.own=true;fm.rotation.y=a;fm.position.y=.17;fm.scale.setScalar(fanR);fm.renderOrder=2;g.add(fm);p.fans.push(fm)}
+  g.add(sh,fx,wr,b);p.bulbMat=bm;p.wire=wr;p.group=g;p.fx=fx;smartGroup.add(g)}}
+function setFans(){fanR=st.sensR;makeFanGeo(st.sensR,st.minD,st.fov);for(const p of HZR.list())for(const f of p.fans){f.geometry=fanGeo;f.scale.setScalar(st.sensR)}}
+function buildPoles(sp){poles=[];
+ for(const e of E){const hz=HZR.edges.has(e.id),s0=hz?HZR.spacing:sp,A=N[e.a],B=N[e.b],from=A.r+2,to=e.len-B.r-2;if(to<=from)continue;const n=Math.max(1,Math.round((to-from)/s0)+1);
+  for(let i=0;i<n;i++){const s=n===1?(from+to)/2:from+(to-from)*i/(n-1),side=((i+e.id)%2)?1:-1,l=left(e.d),c=[A.p[0]+e.d[0]*s,A.p[1]+e.d[1]*s];
+   const nn=[l[0]*side,l[1]*side],base=[c[0]+nn[0]*(e.w/2+.7),c[1]+nn[1]*(e.w/2+.7)],arm=[-nn[0],-nn[1]];
+   if(poles.length<PMAX)poles.push({id:poles.length,e:e.id,base,yaw:yawOf(arm),bulb:[base[0]+arm[0]*1.85,base[1]+arm[1]*1.85],level:0,last:-99,det:false,detRaw:false,cnt:0,Ea:0,Eb:0,main:e.main,grp:-1,
+    smart:hz,zone:hz?HZR.zone:'GENERAL',lightingType:hz?HZR.type:'STANDARD_FIXED',from:-99,until:-99,sec:0,snb:[],bulbY:7.2})}}
+ for(const p of HZR.list()){const f=[Math.cos(p.yaw),-Math.sin(p.yaw)];p.bulb=[p.base[0]+f[0]*SMH[0],p.base[1]+f[1]*SMH[0]];p.bulbY=6.18}
+ poleM.count=bulbM.count=poolM.count=ringM.count=poles.length;
+ const gp3=glowG.attributes.position.array;
+ poles.forEach((p,i)=>{const k=p.smart?1e-4:1;setM(poleM,i,p.base[0],p.smart?-20:.2,p.base[1],p.yaw,k,k,k);setM(bulbM,i,p.base[0],p.smart?-20:.2,p.base[1],p.yaw,k,k,k);gp3[i*3]=p.bulb[0];gp3[i*3+1]=p.bulbY;gp3[i*3+2]=p.bulb[1]});buildSmart();
+ poleM.instanceMatrix.needsUpdate=bulbM.instanceMatrix.needsUpdate=true;glowG.attributes.position.needsUpdate=true;glowG.setDrawRange(0,poles.length);
+ if(!HZR.snap)HZR.snap={h:HZR.list().map(p=>p.base.map(v=>+v.toFixed(4))),all:poles.map(p=>p.base.map(v=>+v.toFixed(4))),sp}}
+function setNeighbours(k){const sm=HZR.list(),sp=HZR.spacing;for(const p of sm){p.snb=[];if(!k)continue;for(const q of sm){if(q===p)continue;const d=Math.hypot(q.base[0]-p.base[0],q.base[1]-p.base[1]),hop=Math.max(1,Math.round(d/sp));if(hop<=k&&d<k*sp*1.4)p.snb.push({q,hop})}}}
+buildPoles(30);
+
+/* traffic signal heads */
+const heads=[];
+for(const n of N)if(n.sig)for(const id of n.edges){const e=E[id],dIn=e.b===n.id?e.d:[-e.d[0],-e.d[1]],l=left(dIn),back=[-dIn[0],-dIn[1]];
+ const p=[n.p[0]+back[0]*(n.r-.6)+l[0]*(e.w/2+1),n.p[1]+back[1]*(n.r-.6)+l[1]*(e.w/2+1)];
+ const g=new THREE.Group();g.position.set(p[0],.2,p[1]);g.rotation.y=yawOf(back);
+ const body=new THREE.Mesh(MG(P(Cyl(.09,.11,4.4,8),0x30363b,[0,2.2,0]),P(Box(.36,1.15,.4),0x1b1f22,[0,4.5,0]),P(Box(.05,1.35,.6),0x111315,[-.2,4.5,0])),VC({roughness:.5}));body.castShadow=HQ;g.add(body);
+ const lamps=[0xff3b30,0xffb020,0x30e070].map((c,i)=>{const m=new THREE.Mesh(Sph(.13,12,8),new THREE.MeshBasicMaterial({color:c,toneMapped:false}));m.position.set(.2,4.85-i*.35,0);g.add(m);return{m,c:C(c)}});
+ scene.add(g);heads.push({n,axis:e.axis,lamps})}
+
+/* houses */
+const houses=[],hgrid=new Map(),hk=(x,z)=>Math.floor(x/20)+','+Math.floor(z/20);
+{const gyaw=FIELD.yaw;for(let a=-1.6;a<=4.4;a+=.17)for(let b=-1.6;b<=5;b+=.2){const p=gp(a+R(-.03,.03),b+R(-.03,.03));
+ if(coastD(p)<16||!inVillage(p)||rnd()<.36)continue;
+ const w=R(7,11),d=R(6,9),rad=Math.max(w,d)*.55;if(roadDist(p)<rad+4)continue;
+ if(Math.hypot(p[0]-FIELD.p[0],p[1]-FIELD.p[1])<66||Math.hypot(p[0]-MOSQ[0],p[1]-MOSQ[1])<24||Math.hypot(p[0]-CAFE[0],p[1]-CAFE[1])<14||Math.hypot(p[0]-HILL[0],p[1]-HILL[1])<34)continue;
+ let ok=true;for(const h of houses)if(Math.abs(h.p[0]-p[0])<20&&Math.abs(h.p[1]-p[1])<20&&Math.hypot(h.p[0]-p[0],h.p[1]-p[1])<h.rad+rad+1.5){ok=false;break}if(!ok)continue;
+ const h={p,w,d,rad,h:rnd()<.2?6.4:R(3.1,3.8),yaw:gyaw+(rnd()<.5?0:Math.PI)};houses.push(h);const k=hk(p[0],p[1]);if(!hgrid.has(k))hgrid.set(k,[]);hgrid.get(k).push(h)}}
+const roofGeo=(()=>{const v=[-.5,0,-.5,.5,0,-.5,.5,1,0,-.5,0,-.5,.5,1,0,-.5,1,0, -.5,0,.5,-.5,1,0,.5,1,0,-.5,0,.5,.5,1,0,.5,0,.5, -.5,0,-.5,-.5,1,0,-.5,0,.5, .5,0,-.5,.5,0,.5,.5,1,0];const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(v,3));g.computeVertexNormals();return g})();
+const wallM=IM(new THREE.BoxGeometry(1,1,1).translate(0,.5,0),new THREE.MeshStandardMaterial({roughness:.85}),houses.length,true);
+const roofM=IM(roofGeo,new THREE.MeshStandardMaterial({roughness:.6,metalness:.2,side:THREE.DoubleSide,flatShading:true}),houses.length,true);
+const winMat=new THREE.MeshBasicMaterial({toneMapped:false});
+const winM=IM(new THREE.PlaneGeometry(1.3,1.05),winMat,houses.length*3);
+{const walls=[0xf6f4ee,0xf4f1e6,0xe9f2e4,0xf7e6d8,0xe4eef4,0xf5ecc8,0xdff0ea],roofs=[0x8e969c,0x7c8489,0xb5452f,0x2f6f9a,0x3f7f4f,0xa9aeb2];let wi=0;
+ houses.forEach((h,i)=>{setM(wallM,i,h.p[0],.2,h.p[1],h.yaw,h.w,h.h,h.d);wallM.setColorAt(i,C(walls[i%walls.length]));
+  setM(roofM,i,h.p[0],.2+h.h,h.p[1],h.yaw,h.w+.8,h.h>5?1.5:1.7,h.d+.8);roofM.setColorAt(i,C(roofs[(i*7)%roofs.length]));
+  const fl=h.h>5?2:1;for(let f=0;f<fl&&wi<houses.length*3;f++)for(const sx of f?[0]:[-.27,.27]){if(wi>=houses.length*3)break;const lx=sx*h.w,lz=h.d/2+.03,c=Math.cos(h.yaw),s=Math.sin(h.yaw);
+   setM(winM,wi,h.p[0]+lx*c+lz*s,.2+1.6+f*3,h.p[1]-lx*s+lz*c,h.yaw);winM.setColorAt(wi,_c.setScalar(rnd()<.68?1:.12));wi++}});
+ wallM.count=roofM.count=houses.length;winM.count=wi}
+
+/* trees and coconut palms */
+const treeGeo=MG(P(Cyl(.22,.38,3.2,6),0x5a4632,[0,1.6,0]),P(new THREE.IcosahedronGeometry(2.6,1),0x3d6c28,[0,4.6,0],[0,0,0],[1,.8,1]),P(new THREE.IcosahedronGeometry(1.9,0),0x4b7d31,[1.1,5.4,.6]),P(new THREE.IcosahedronGeometry(1.7,0),0x36621f,[-1,5,-.7]));
+const palmGeo=(()=>{const parts=[];let x=0,y=0;for(let i=0;i<6;i++){const a=.07*i,l=1.55;parts.push(P(Cyl(.15-i*.008,.18-i*.008,l+.05,7),i%2?0x7a6448:0x6b563c,[x+Math.sin(a)*l/2,y+Math.cos(a)*l/2,0],[0,0,-a]));x+=Math.sin(a)*l;y+=Math.cos(a)*l}
+ for(let k=0;k<9;k++){const g=Box(3.6,.05,.62).translate(1.8,0,0);parts.push(P(g,k%2?0x3f7f2c:0x5a9436,[x,y,0],[0,k/9*6.283+.3,-.35-(k%3)*.12]))}
+ for(let k=0;k<3;k++)parts.push(P(Sph(.2,8,6),0x7a6a2a,[x+Math.cos(k*2.1)*.3,y-.25,Math.sin(k*2.1)*.3]));return MG(...parts)})();
+const trees=[],palms=[];
+{const want=HQ?3400:1600;let tries=0;while(trees.length+palms.length<want&&tries++<60000){const p=[R(bb.x0,bb.x1),R(bb.z0,bb.z1)],cd=coastD(p);if(cd<3)continue;
+ const vil=inVillage(p);if(vil&&rnd()>.3)continue;if(roadDist(p)<2.5)continue;
+ if(Math.hypot(p[0]-FIELD.p[0],p[1]-FIELD.p[1])<60||Math.hypot(p[0]-MOSQ[0],p[1]-MOSQ[1])<18||Math.hypot(p[0]-HILL[0],p[1]-HILL[1])<28)continue;
+ let hit=false;const k0=Math.floor(p[0]/20),k1=Math.floor(p[1]/20);for(let i=-1;i<=1&&!hit;i++)for(let j=-1;j<=1&&!hit;j++)for(const h of hgrid.get((k0+i)+','+(k1+j))||[])if(Math.hypot(h.p[0]-p[0],h.p[1]-p[1])<h.rad+1.8){hit=true;break}if(hit)continue;
+ const palm=cd<45?rnd()<.8:vil?rnd()<.65:rnd()<.16;(palm?palms:trees).push({p,s:palm?R(.85,1.5):R(.7,1.6),r:R(0,6.28)})}}
+const treeM=IM(treeGeo,VC({flatShading:true,roughness:.9}),trees.length,true),palmM=IM(palmGeo,VC({flatShading:true,roughness:.85,side:THREE.DoubleSide}),palms.length,true);
+trees.forEach((t,i)=>{setM(treeM,i,t.p[0],.1,t.p[1],t.r,t.s,t.s*R(.85,1.2),t.s);treeM.setColorAt(i,_c.setRGB(R(.75,1.1),R(.85,1.1),R(.7,1)))});
+palms.forEach((t,i)=>{setM(palmM,i,t.p[0],.1,t.p[1],t.r,t.s,t.s,t.s);palmM.setColorAt(i,_c.setRGB(R(.85,1.05),R(.9,1.1),R(.8,1)))});
+treeM.count=trees.length;palmM.count=palms.length;
+
+/* ---------- road users ---------- */
+const carPaint=MG(P(Box(4.2,.72,1.76),0xffffff,[0,.62,0]),P(Box(2.2,.08,1.56),0xffffff,[-.25,1.45,0]));
+const carFix=MG(P(Box(2.25,.62,1.6),0x1c2834,[-.25,1.12,0]),...[[1.35,.82],[1.35,-.82],[-1.35,.82],[-1.35,-.82]].map(([x,z])=>P(Cyl(.34,.34,.26,12),0x141414,[x,.34,z],[Math.PI/2,0,0])),P(Box(.16,.26,1.72),0x2a2a2a,[2.12,.45,0]),P(Box(.16,.26,1.72),0x2a2a2a,[-2.12,.45,0]));
+const carLt=MG(P(Box(.06,.16,.36),0xfff4dc,[2.14,.7,.6]),P(Box(.06,.16,.36),0xfff4dc,[2.14,.7,-.6]),P(Box(.06,.14,.36),0xff2a1a,[-2.14,.72,.62]),P(Box(.06,.14,.36),0xff2a1a,[-2.14,.72,-.62]));
+const motoPaint=MG(P(Box(1.1,.35,.32),0xffffff,[.05,.75,0]),P(Box(.32,.42,.38),0xffffff,[.72,.86,0]));
+const rider=(sx,col,helm)=>[P(Box(.3,.56,.4),col,[sx,1.32,0],[0,0,-.22]),P(Sph(.15,10,8),helm,[sx+.12,1.74,0]),P(Box(.5,.14,.12),0x2b2b3a,[sx+.25,.97,.18]),P(Box(.5,.14,.12),0x2b2b3a,[sx+.25,.97,-.18]),P(Box(.5,.1,.1),col,[sx+.28,1.36,.21],[0,0,-.4]),P(Box(.5,.1,.1),col,[sx+.28,1.36,-.21],[0,0,-.4])];
+const motoFix=MG(P(Cyl(.3,.3,.12,12),0x111111,[.68,.3,0],[Math.PI/2,0,0]),P(Cyl(.3,.3,.12,12),0x111111,[-.68,.3,0],[Math.PI/2,0,0]),P(Box(.62,.1,.3),0x222222,[-.35,.96,0]),P(Box(.06,.06,.7),0x333333,[.62,1.12,0]),...rider(-.32,0x34495e,0x1e1e1e));
+const motoLt=MG(P(Box(.06,.13,.15),0xfff4dc,[.89,.95,0]),P(Box(.05,.08,.13),0xff2a1a,[-.78,.85,0]));
+const cycPaint=MG(P(Box(.28,.55,.38),0xffffff,[-.12,1.25,0],[0,0,-.35]));
+const cycFix=MG(P(new THREE.TorusGeometry(.33,.03,6,18),0x111111,[.55,.35,0]),P(new THREE.TorusGeometry(.33,.03,6,18),0x111111,[-.55,.35,0]),P(Box(1.05,.05,.05),0x707a80,[0,.62,0]),P(Box(.05,.5,.05),0x707a80,[-.2,.75,0]),P(Box(.05,.05,.5),0x333333,[.5,1.05,0]),P(Box(.05,.6,.05),0x707a80,[.5,.75,0],[0,0,-.25]),
+ P(Sph(.12,10,8),0x8d5a3b,[.06,1.62,0]),P(Box(.45,.12,.12),0x2b2f3a,[.05,.85,.14],[0,0,-.6]),P(Box(.45,.12,.12),0x2b2f3a,[.05,.85,-.14],[0,0,.5]),P(Box(.45,.08,.08),0x8d5a3b,[.25,1.3,.18],[0,0,-.5]),P(Box(.45,.08,.08),0x8d5a3b,[.25,1.3,-.18],[0,0,-.5]));
+const cycLt=MG(P(Box(.05,.08,.1),0xfff4dc,[.8,.95,0]),P(Box(.04,.06,.1),0xff2a1a,[-.8,.8,0]));
+const pedTorso=MG(P(Box(.22,.56,.38),0xffffff,[0,1.18,0]));
+const pedFix=MG(P(Sph(.115,10,8),0x8d5a3b,[0,1.6,0]),P(Sph(.12,10,6,0,6.3,0,1.4),0x1a1410,[-.01,1.63,0]),P(Cyl(.05,.05,.1,6),0x8d5a3b,[0,1.48,0]));
+const legGeo=new THREE.BoxGeometry(.14,.88,.16).translate(0,-.44,0),armGeo=new THREE.BoxGeometry(.09,.58,.1).translate(0,-.29,0);
+const CAP={car:40,moto:90,cyc:44,ped:150};
+const mk=(paint,fix,lt,n,sh=true)=>({paint:IM(paint,new THREE.MeshStandardMaterial({roughness:.4,metalness:.25}),n,sh),fix:IM(fix,VC({roughness:.7}),n,sh),lt:lt?IM(lt,new THREE.MeshBasicMaterial({vertexColors:true,toneMapped:false}),n):null});
+const G={car:mk(carPaint,carFix,carLt,CAP.car),moto:mk(motoPaint,motoFix,motoLt,CAP.moto),cyc:mk(cycPaint,cycFix,cycLt,CAP.cyc),ped:mk(pedTorso,pedFix,null,CAP.ped)};
+G.ped.paint.material.metalness=0;G.ped.paint.material.roughness=.85;
+const legL=IM(legGeo,new THREE.MeshStandardMaterial({color:0x2a3140,roughness:.8}),CAP.ped,true),legR=IM(legGeo,legL.material,CAP.ped,true),armL=IM(armGeo,new THREE.MeshStandardMaterial({color:0x8d5a3b,roughness:.8}),CAP.ped,true),armR=IM(armGeo,armL.material,CAP.ped,true);
+const beamMat=new THREE.MeshBasicMaterial({map:poolTex,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false,color:0});
+const beams=IM(new THREE.PlaneGeometry(1,1).rotateX(-Math.PI/2),beamMat,CAP.car+CAP.moto+CAP.cyc);
+
+const TYPES={car:{vmax:[8.5,11],len:4.4,cols:[0xf2f2f2,0xd8dde0,0x1d1f22,0xb3202a,0x2756a8,0x8c9399,0x2f6e54,0xc8a46a]},moto:{vmax:[9,12],len:2,cols:[0x1d1f22,0xc3262e,0x2756a8,0xf2f2f2,0x2f8f6f,0xe0a020]},cyc:{vmax:[4,5.2],len:1.8,cols:[0x2fa58f,0xe25555,0x3a6fd8,0xf0c040,0xf2f2f2,0x8a5bd0]},
+ walk:{vmax:[1.15,1.5],len:.5,cols:[0xffffff,0xe7d7b8,0x3a6fd8,0x2fa58f,0xd04848,0x333a45,0xf0c040,0x8a5bd0]},run:{vmax:[2.6,3.4],len:.5,cols:[0xff5a3c,0x29c0e0,0xc6f04a,0xff4fa0,0xffffff]}};
+const MAXN={car:6,moto:15,cyc:8,walk:20,run:6};
+const PROF={veh:[.06,.04,.03,.03,.04,.12,.35,.6,.7,.55,.5,.5,.55,.5,.5,.6,.75,.9,1,1,.9,.7,.4,.15],ped:[.05,.03,.02,.02,.04,.15,.4,.5,.5,.4,.35,.35,.4,.35,.35,.5,.8,1,1,.9,.7,.5,.25,.1],run:[0,0,0,0,.1,.6,1,.6,.2,.05,0,0,0,0,0,.1,.5,1,.8,.3,.1,0,0,0]};
+const prof=(arr,h)=>{const i=Math.floor(h)%24,j=(i+1)%24,f=h-Math.floor(h);return lerp(arr[i],arr[j],f)};
+const A={car:[],moto:[],cyc:[],ped:[]};const all=()=>A.car.concat(A.moto,A.cyc,A.ped);
+const occ=new Map(),lk=(e,dir)=>e*2+dir,occOf=k=>{let a=occ.get(k);if(!a){a=[];occ.set(k,a)}return a};
+const sR=(e,dir)=>startN(e,dir).r,eR=(e,dir)=>endN(e,dir).r;
+function pickNext(e,dir,ag){const n=endN(e,dir),dIn=dirv(e,dir);let c=n.edges.filter(id=>id!==e.id);if(!c.length)return{e:e.id,dir:1-dir};
+ if(!ag.ped)c=c.filter(id=>id!==e.id);let tot=0;const w=c.map(id=>{const e2=E[id],d2=e2.a===n.id?0:1,dd=dirv(e2,d2),dot=dIn[0]*dd[0]+dIn[1]*dd[1];const v=(dot>.7?(e.main&&e2.main?4:2):1);tot+=v;return v});
+ let r=rnd()*tot;for(let i=0;i<c.length;i++){r-=w[i];if(r<=0){const e2=E[c[i]];return{e:e2.id,dir:e2.a===n.id?0:1}}}const e2=E[c[0]];return{e:e2.id,dir:e2.a===n.id?0:1}}
+function spawn(kind){const ped=kind==='walk'||kind==='run',T=TYPES[kind];for(let t=0;t<8;t++){const e=E[Math.floor(rnd()*E.length)],dir=rnd()<.5?0:1,a0=sR(e,dir),a1=e.len-eR(e,dir);if(a1-a0<6)continue;const s=R(a0,a1);
+ if(!ped){const k=lk(e.id,dir);if(occOf(k).some(o=>Math.abs(o.s-s)<14))continue}
+ const ag={kind,ped,run:kind==='run',e:e.id,dir,s,v:0,vmax:R(...T.vmax),len:T.len,col:C(T.cols[Math.floor(rnd()*T.cols.length)]),turn:null,wait:0,x:0,z:0,yaw:0,ph:R(0,6),rm:false,late:-1};
+ ag.next=pickNext(e,dir,ag);if(!ped){ag.k=lk(e.id,dir);occOf(ag.k).push(ag)}const p=lanePos(e,dir,s,ped?e.side:e.lane);ag.x=p[0];ag.z=p[1];ag.yaw=yawOf(dirv(e,dir));
+ (ped?A.ped:A[kind]).push(ag);return ag}return null}
+function bez(T,t){const u=1-t;return[u*u*T.p0[0]+2*u*t*T.p1[0]+t*t*T.p2[0],u*u*T.p0[1]+2*u*t*T.p1[1]+t*t*T.p2[1]]}
+function bezD(T,t){return[2*(1-t)*(T.p1[0]-T.p0[0])+2*t*(T.p2[0]-T.p1[0]),2*(1-t)*(T.p1[1]-T.p0[1])+2*t*(T.p2[1]-T.p1[1])]}
+function startTurn(ag){const e=E[ag.e],n=endN(e,ag.dir),nx=ag.next,e2=E[nx.e];const o1=ag.ped?e.side:e.lane,o2=ag.ped?e2.side:e2.lane;
+ const p0=lanePos(e,ag.dir,ag.s,o1),p2=lanePos(e2,nx.dir,sR(e2,nx.dir),o2),d1=dirv(e,ag.dir),d2=dirv(e2,nx.dir),cr=d1[0]*d2[1]-d1[1]*d2[0],dot=d1[0]*d2[0]+d1[1]*d2[1];let p1;
+ if(Math.abs(cr)<.25)p1=dot<0?[n.p[0]+d1[0]*n.r*.2,n.p[1]+d1[1]*n.r*.2]:[(p0[0]+p2[0])/2,(p0[1]+p2[1])/2];
+ else{const rx=p2[0]-p0[0],rz=p2[1]-p0[1],t=clamp((rx*d2[1]-rz*d2[0])/cr,0,n.r*2.2);p1=[p0[0]+d1[0]*t,p0[1]+d1[1]*t]}
+ const T={p0,p1,p2,t:0,L:0,n:n.id};let L=0,pr=p0;for(let i=1;i<=8;i++){const q=bez(T,i/8);L+=Math.hypot(q[0]-pr[0],q[1]-pr[1]);pr=q}T.L=Math.max(L,.5);ag.turn=T;
+ if(!ag.ped){const o=occOf(ag.k),i=o.indexOf(ag);if(i>=0)o.splice(i,1);n.busy.push({ag,k:ag.k})}}
+function endTurn(ag){const T=ag.turn,n=N[T.n];if(!ag.ped){const i=n.busy.findIndex(b=>b.ag===ag);if(i>=0)n.busy.splice(i,1)}
+ const nx=ag.next,e2=E[nx.e];ag.e=nx.e;ag.dir=nx.dir;ag.s=sR(e2,nx.dir)+(T.t-1)*T.L;ag.turn=null;ag.next=pickNext(e2,nx.dir,ag);if(!ag.ped){ag.k=lk(e2.id,nx.dir);occOf(ag.k).push(ag)}}
+function kill(ag){ag.dead=true;if(!ag.ped){const o=occOf(ag.k),i=o.indexOf(ag);if(i>=0)o.splice(i,1);for(const n of N){const j=n.busy.findIndex(b=>b.ag===ag);if(j>=0)n.busy.splice(j,1)}}if(follow===ag)follow=null}
+function sigOK(n,axis){const ph=n.sig.ph;return axis==='u'?(ph===0?2:ph===1?1:0):(ph===3?2:ph===4?1:0)}
+function canGo(ag,toStop){const e=E[ag.e],n=endN(e,ag.dir),nx=ag.next,e2=E[nx.e];
+ if(n.sig){const s=sigOK(n,e.axis);if(s===0&&ag.wait<40)return false;if(s===1&&!(toStop<4&&ag.v>3))return false}
+ else if(ag.wait<4){for(const b of n.busy)if(b.k!==ag.k)return false}
+ if(ag.wait<5){const k2=lk(e2.id,nx.dir),lim=sR(e2,nx.dir)+ag.len+3;for(const o of occOf(k2))if(o.s<lim)return false;for(const b of n.busy)if(b.ag!==ag&&b.ag.next.e===nx.e&&b.ag.next.dir===nx.dir&&b.k!==ag.k)return false}
+ return true}
+function moveVeh(ag,dt){const e=E[ag.e];
+ if(ag.turn){const T=ag.turn;ag.v+=clamp(ag.vmax*.55-ag.v,-6*dt,2.5*dt);T.t+=ag.v*dt/T.L;if(T.t>=1){endTurn(ag);return moveVeh(ag,0)}const p=bez(T,T.t),d=bezD(T,T.t);ag.x=p[0];ag.z=p[1];ag.yaw=Math.atan2(-d[1],d[0]);return}
+ const stopS=e.len-eR(e,ag.dir),toStop=stopS-ag.s;let gap=1e9;
+ for(const o of occOf(ag.k))if(o!==ag&&o.s>ag.s){const g=o.s-ag.s-(o.len+ag.len)/2;if(g<gap)gap=g}
+ const n=endN(e,ag.dir);for(const b of n.busy)if(b.k===ag.k&&b.ag!==ag&&b.ag.turn&&b.ag.turn.t<.5){const g=toStop+b.ag.turn.t*b.ag.turn.L-(b.ag.len+ag.len)/2;if(g<gap)gap=g}
+ let go=true;if(toStop<35){if(ag.rm&&toStop<1){kill(ag);return}go=canGo(ag,toStop);if(!go)gap=Math.min(gap,toStop-.3)}
+ const lim=e.main?ag.vmax:ag.vmax*.8,vd=Math.min(lim,Math.sqrt(Math.max(0,2*3.2*(gap-2.2))));ag.v+=clamp(vd-ag.v,-8*dt,2.4*dt);if(ag.v<0)ag.v=0;
+ ag.wait=(ag.v<.3&&toStop<12)?ag.wait+dt:0;
+ ag.s+=ag.v*dt;if(ag.s>=stopS){if(go||canGo(ag,0)){startTurn(ag);ag.turn.t=0;return moveVeh(ag,0)}ag.s=stopS;ag.v=0}
+ const p=lanePos(e,ag.dir,ag.s,e.lane);ag.x=p[0];ag.z=p[1];ag.yaw=yawOf(dirv(e,ag.dir))}
+function movePed(ag,dt){ag.v=ag.vmax;ag.ph+=dt*ag.v*(ag.run?3.4:4.6);const e=E[ag.e];
+ if(ag.turn){const T=ag.turn;T.t+=ag.v*dt/T.L;if(T.t>=1){endTurn(ag);return movePed(ag,0)}const p=bez(T,T.t),d=bezD(T,T.t);ag.x=p[0];ag.z=p[1];ag.yaw=Math.atan2(-d[1],d[0]);return}
+ const stopS=e.len-eR(e,ag.dir);ag.s+=ag.v*dt;if(ag.s>=stopS){if(ag.rm){kill(ag);return}startTurn(ag);return movePed(ag,0)}
+ const p=lanePos(e,ag.dir,ag.s,e.side);ag.x=p[0];ag.z=p[1];ag.yaw=yawOf(dirv(e,ag.dir))}
+
+/* ---------- state ---------- */
+const st={sec:17*3600+20*60,speed:240,paused:false,ctrl:'adaptive',wakeMode:'follow',ahead:2,tail:2,sensR:8,xray:false,fov:60,minD:.5,det:{pedestrian:true,cyclist:true,vehicle:true},hys:2,dwell:60,noise:0,stview:'har',wake:1,dim:.3,hold:6,budgetMs:12,watt:60,spacing:30,rings:true,dens:1,sw:'clock',amb:'model',ambLux:10,ldrThr:20,diff:'F1',supply:'grid',irsc:0,anch:4,stif:1,date:'2026-11-17',doy:321};
+setNeighbours(1);
+const STB=1.5;
+const newNight=()=>({Ha:0,Hb:0,Ea:0,Eb:0,Ec:0,det:0,late:0,samples:[],complete:false,startedAtOn:false,label:'tonight',mode:st.ctrl});
+let night=newNight(),lastOn=null,lastNights=[];
+let realSunY=0,vT=0,follow=null,tween=null,realT=0,sampleT=-1,ON=false,LUX=0,detAll=0;
+const UG=[[18,20,94,1],[20,22,38,.4],[22,24,17,.3],[0,2,13,.3],[2,4,29,.3],[4,6,49,.5]];
+const ugRow=h=>UG.find(r=>h>=r[0]&&h<r[1]);
+const UG_FRAC=UG.reduce((a,r)=>a+r[3]*2,0)/12;
+const IRS=[[1,1,.3],[.3,1,1],[.3,.3,1]],IRNAMES=['Closely spaced objects','Single moving object','Object at end of street, no following object'];
+
+/* island inputs (Not Provided until entered) */
+const FD=[['convW','Conventional lamp input power','existing island lamps, for comparison','W',[1,2000]],['ploss','System loss power, Ploss','','W',[0,1e6]],['pvKwp','PV array size','','kWp',[.1,1e4]],['gPeak','Peak irradiance for clear-sky profile','island irradiance not measured','W/m²',[50,1400]],['batKwh','Battery nominal capacity','','kWh',[.1,1e5]],['batV','Battery bank voltage, V','','V',[1,1500]],['dod','Depth of discharge, DOD','0–1','',[.05,1]],['dt','Temperature derating, DT','0–1','',[.05,1]],['autonomy','Autonomy, Na','','days',[.1,30]],['invEff','Inverter efficiency','','%',[10,100]],['pumpW','DC pump power','runs on surplus','W',[1,1e5]],['cpv','PV module unit cost, cpv','currency units','',[0,1e9]],['cbat','Battery unit cost, cbat','currency units','',[0,1e9]],['cin','Installation cost, Cin','currency units','',[0,1e12]]];
+const F={};FD.forEach(f=>F[f[0]]={v:null,src:'np',def:f});
+const ILL={ploss:200,pvKwp:12,gPeak:1000,batKwh:60,batV:48,dod:.7,dt:.9,autonomy:1,invEff:92,pumpW:150};
+const TAG={np:'<span class="tg np">Not Provided</span>',inp:'<span class="tg inp">Input</span>',ill:'<span class="tg ill">Illustrative</span>'};
+const fv=k=>F[k].v;
+
+/* ---------- sun position (5.9° N) and ambient light ---------- */
+const LAT=5.9*Math.PI/180;const sunDir=new THREE.Vector3();let NF=0;
+function calcDoy(){const d=new Date(st.date+'T12:00:00');if(isNaN(d))return;st.doy=Math.floor((d-new Date(d.getFullYear(),0,0))/864e5)}
+function sunVec(h){const dec=23.44*Math.PI/180*Math.sin(2*Math.PI*(284+st.doy)/365),H=(h-12)*15*Math.PI/180;
+ const up=Math.sin(LAT)*Math.sin(dec)+Math.cos(LAT)*Math.cos(dec)*Math.cos(H),east=-Math.cos(dec)*Math.sin(H),north=Math.cos(LAT)*Math.sin(dec)-Math.sin(LAT)*Math.cos(dec)*Math.cos(H);
+ sunDir.set(east,up,-north).normalize()}
+function luxModel(){const alt=Math.asin(clamp(sunDir.y,-1,1))*180/Math.PI;if(alt>0)return 400+110000*Math.pow(Math.sin(alt*Math.PI/180),1.3);if(alt>-6)return 3*Math.pow(400/3,(alt+6)/6);if(alt>-12)return .01*Math.pow(300,(alt+12)/6);return .005}
+const ambient=()=>{const b=st.amb==='manual'?st.ambLux:luxModel();return st.noise>0?b*Math.max(0,1+st.noise/100*(rnd()*2-1)):b};
+const genOn=h=>h>=17.75||h<5.75; /* standard island lamps: unchanged clock schedule */
+let hState=null,hPend=null,hPendT=0;
+function harbourOn(h,lux,dS){if(st.sw==='clock'){hState=null;hPend=null;hPendT=0;return st.ctrl==='uganda'?(h>=18||h<6):genOn(h)}
+ const thr=st.sw==='lux20'?20:st.ldrThr;if(hState===null)hState=lux<thr;
+ const want=lux<thr-st.hys?true:lux>thr+st.hys?false:hState;
+ if(want!==hState){if(hPend!==want){hPend=want;hPendT=0}hPendT+=dS;if(hPendT>=st.dwell){hState=want;hPend=null;hPendT=0}}else{hPend=null;hPendT=0}
+ return hState}
+const fmtLux=l=>l>=1000?(l/1000).toFixed(l>=1e4?0:1)+' klx':l>=10?l.toFixed(0)+' lx':l>=1?l.toFixed(1)+' lx':l.toFixed(2)+' lx';
+
+/* ---------- sky / light keyframes ---------- */
+const KEYS=[{e:-.35,top:0x02050d,hor:0x060b18,si:0,sc:0xff8040,hi:.05,ocean:0x02101a},{e:-.12,top:0x081330,hor:0x1a2142,si:0,sc:0xff8040,hi:.08,ocean:0x041826},{e:-.02,top:0x1f2d5c,hor:0x8a5a76,si:0,sc:0xff7a40,hi:.25,ocean:0x0d2c45},{e:.07,top:0x3b62a6,hor:0xf2a060,si:1.1,sc:0xffa060,hi:.55,ocean:0x18506e},{e:.22,top:0x2f78d0,hor:0xa9cdeb,si:2.4,sc:0xfff0dc,hi:.9,ocean:0x0a5a82},{e:.6,top:0x2a6fd0,hor:0xbadcf5,si:3,sc:0xffffff,hi:1,ocean:0x0a5f88}].map(k=>({...k,top:C(k.top),hor:C(k.hor),sc:C(k.sc),ocean:C(k.ocean)}));
+function updateSky(h){sunVec(h);const e=sunDir.y;let i=0;while(i<KEYS.length-2&&e>KEYS[i+1].e)i++;const a=KEYS[i],b=KEYS[i+1],t=clamp((e-a.e)/(b.e-a.e),0,1);
+ NF=smooth(.05,-.12,e);skyU.top.value.copy(a.top).lerp(b.top,t);skyU.hor.value.copy(a.hor).lerp(b.hor,t);skyU.sunC.value.copy(a.sc).lerp(b.sc,t);skyU.sunD.value.copy(sunDir);skyU.sunV.value=smooth(-.06,.02,e);
+ scene.fog.color.copy(skyU.hor.value);sun.intensity=lerp(a.si,b.si,t);sun.color.copy(skyU.sunC.value);
+ hemi.intensity=lerp(a.hi,b.hi,t);hemi.color.copy(skyU.top.value).lerp(C(0xffffff),.35);hemi.groundColor.setRGB(.25,.22,.16).multiplyScalar(.4+hemi.intensity*.6);
+ moon.intensity=NF*.45;starM.opacity=NF*.95;ocean.material.color.copy(a.ocean).lerp(b.ocean,t);renderer.toneMappingExposure=1+NF*.35;
+ winMat.color.setRGB(lerp(.17,1.25,NF),lerp(.21,.82,NF),lerp(.26,.45,NF))}
+
+/* ---------- IR scenario replay on the harbour road (Nasih.pdf scenarios; not validation of the 6-PIR design) ---------- */
+const irKeys=['-1,4','qw','0,4.8','qe'].filter(k=>nk[k]!==undefined),irPts=irKeys.map(k=>N[nk[k]].p),irCum=[0];
+for(let i=1;i<irPts.length;i++)irCum.push(irCum[i-1]+Math.hypot(irPts[i][0]-irPts[i-1][0],irPts[i][1]-irPts[i-1][1]));
+function irPos(s){s=clamp(s,0,irCum[irCum.length-1]-.01);let i=0;while(i<irPts.length-2&&s>irCum[i+1])i++;const a=irPts[i],b=irPts[i+1],L=irCum[i+1]-irCum[i],t=(s-irCum[i])/L,d=[(b[0]-a[0])/L,(b[1]-a[1])/L],l=left(d);return[a[0]+(b[0]-a[0])*t+l[0]*1.6,a[1]+(b[1]-a[1])*t+l[1]*1.6,yawOf(d)]}
+function irProj(p){let best=1e9,bs=0;for(let i=0;i<irPts.length-1;i++){const a=irPts[i],b=irPts[i+1],L=irCum[i+1]-irCum[i],t=clamp(((p[0]-a[0])*(b[0]-a[0])+(p[1]-a[1])*(b[1]-a[1]))/(L*L),0,1),q=[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t],d=Math.hypot(p[0]-q[0],p[1]-q[1]);if(d<best){best=d;bs=irCum[i]+t*L}}return[bs,best]}
+let irSel=[],irB=[0,0,0,0];
+function setupIR(){HZR.list().map(p=>(p.s=irProj(p.base)[0],p)).sort((a,b)=>a.s-b.s).forEach((p,i)=>p.rank=i);irSel=HZR.list().slice().sort((a,b)=>a.s-b.s).slice(0,9);
+ poles.forEach(p=>p.grp=-1);const n=irSel.length;irSel.forEach((p,i)=>p.grp=Math.min(2,Math.floor(i*3/n)));
+ const g=k=>irSel.filter(p=>p.grp===k);if(n>=3){irB=[g(0)[0].s-14,(g(0).at(-1).s+g(1)[0].s)/2,(g(1).at(-1).s+g(2)[0].s)/2,g(2).at(-1).s+14]}}
+setupIR();
+const demoGeo=MG(carPaint.clone(),carFix.clone(),carLt.clone());const demoCars=[0,1].map(()=>{const m=new THREE.Mesh(demoGeo,VC({roughness:.5}));m.castShadow=HQ;m.visible=false;scene.add(m);return m});
+function updDemo(){const on=st.ctrl==='ir'&&irSel.length>=3;demoCars.forEach(m=>m.visible=false);if(!on)return;const t=vT;let ss=[];
+ if(st.irsc===0){const span=irB[2]-irB[0]+16,l=irB[0]+(t*5)%span;ss=[l,l-8]}else if(st.irsc===1)ss=[irB[1]+(t*8)%(irB[3]-irB[1]+14)];else ss=[irB[3]-10];
+ ss.forEach((s,i)=>{const p=irPos(s),m=demoCars[i];m.visible=true;m.position.set(p[0],.32,p[1]);m.rotation.y=p[2]})}
+
+/* ===== SensorEventManager: one interface for simulated and injected PIR events ===== */
+const CAT={car:'vehicle',moto:'vehicle',cyc:'cyclist',walk:'pedestrian',run:'pedestrian'};
+const clockStr=()=>{const m=Math.floor(st.sec/60)%1440;return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')};
+const SEM={log:[],active:new Map(),seq:0,
+ /* ev = {poleId, sensorId (1–6), category, timestamp, active} */
+ ingest(ev,opt={}){const p=poles[ev.poleId];if(!p||p.lightingType!=='SMART_ADAPTIVE')return null;const key=ev.poleId+':'+ev.sensorId;
+  if(ev.active){if(this.active.has(key))return this.active.get(key);
+   const act=!ON_H?'day: no lighting action':st.ctrl==='adaptive'?(st.wakeMode==='follow'?'→ 100 %, lamps ahead follow':`→ 100 %${st.wake?` +${st.wake} each side`:''}`):'logged; strategy ignores PIR';
+   const rec={id:++this.seq,poleId:ev.poleId,sensorId:ev.sensorId,category:ev.category,timestamp:ev.timestamp,active:true,end:null,action:act,injected:!!opt.injected,exp:opt.injected?realT+1.5:0};
+   this.active.set(key,rec);this.log.push(rec);if(this.log.length>300)this.log.shift();p.cnt++;detAll++;if(ON_H)night.det++;return rec}
+  const rec=this.active.get(key);if(rec){rec.active=false;rec.end=ev.timestamp;this.active.delete(key)}return rec},
+ count(){return this.active.size},reset(){this.log=[];this.active.clear();this.seq=0}};
+function scanPIR(ag){const R2=st.sensR*st.sensR,m2=st.minD*st.minD,half=st.fov*Math.PI/360,ts=clockStr();
+ for(const [key,rec] of [...SEM.active])if(rec.injected&&realT>rec.exp)SEM.ingest({poleId:rec.poleId,sensorId:rec.sensorId,timestamp:ts,active:false});
+ for(const p of HZR.list()){const cats=[[],[],[],[],[],[]];
+  for(const a of ag){const c=CAT[a.kind];if(!st.det[c])continue;const dx=a.x-p.base[0],dz=a.z-p.base[1],d2=dx*dx+dz*dz;if(d2>R2||d2<m2)continue;const an=Math.atan2(-dz,dx)-p.yaw;
+   for(let k=0;k<6;k++){let df=an-k*Math.PI/3;df=Math.atan2(Math.sin(df),Math.cos(df));if(Math.abs(df)<=half&&!cats[k].includes(c))cats[k].push(c)}}
+  let mask=0;for(let k=0;k<6;k++){const key=p.id+':'+(k+1),rec=SEM.active.get(key);
+   if(cats[k].length){mask|=1<<k;if(!rec)SEM.ingest({poleId:p.id,sensorId:k+1,category:cats[k].join(' + '),timestamp:ts,active:true})}
+   else if(rec&&!rec.injected)SEM.ingest({poleId:p.id,sensorId:k+1,timestamp:ts,active:false});
+   if(rec&&rec.injected&&rec.active)mask|=1<<k}
+  p.sec=mask;p.detRaw=mask>0}}
+/* ===== HarbourLightingController: Day / Standby / Motion for the harbour group only ===== */
+let ON_G=false,ON_H=false;
+const HLC={
+ motion(p){if(st.ctrl!=='adaptive'||!ON_H)return;trig(p,0);const t=TRK.at(p);
+  if(st.wakeMode==='both'||!t||t.dir===0){for(const n of p.snb)trig(n.q,n.hop*.35);return}
+  const ch=TRK.chain(),eta=t.v?Math.min(40,(TRK.gap(p,t.dir)||st.spacing)/t.v+3):0;
+  for(let k=1;k<=st.ahead;k++){const q=ch[p.rank+t.dir*k];if(q)trig(q,k*.35,Math.max(st.hold,eta*(k===1?1:1.15)))}},
+ target(p,h){if(!ON_H)return 0;if(st.ctrl==='conv')return 1;if(st.ctrl==='uganda'){const r=ugRow(h);return r?r[3]:1}if(st.ctrl==='ir')return p.grp>=0?IRS[st.irsc][p.grp]:1;return realT>=p.from&&realT<p.until?1:st.dim},
+ state(p){if(!ON_H)return'Day';if(st.ctrl!=='adaptive')return{conv:'Fixed 100 %',uganda:'Schedule',ir:'IR replay'}[st.ctrl];return realT>=p.from&&realT<p.until?'Motion':'Standby'},
+ zone(){if(!ON_H)return'Day';if(st.ctrl!=='adaptive')return this.state(HZR.list()[0]||{});return HZR.list().some(p=>this.state(p)==='Motion')?'Motion':'Standby'}};
+function targetFor(p,h){return p.lightingType==='SMART_ADAPTIVE'?HLC.target(p,h):(ON_G?1:0)}
+function trig(q,dl,hold){const s=realT+dl;if(q.until<s)q.from=s;q.until=Math.max(q.until,s+(hold??st.hold))}
+/* ===== Follow-me tracker: direction and speed inferred from the order neighbouring harbour poles detect (PIR alone gives neither) ===== */
+const TRK={list:[],seq:0,win:35,
+ chain:()=>HZR.list().slice().sort((a,b)=>a.rank-b.rank),
+ gap(p,dir){const q=this.chain()[p.rank+dir];return q?Math.abs(q.s-p.s):null},
+ at(p){let best=null;for(const t of this.list)if(t.rank===p.rank&&(!best||t.lastT>best.lastT))best=t;return best},
+ cat(p){for(const r of SEM.active.values())if(r.poleId===p.id)return r.category;return'—'},
+ step(){const now=realT,ch=this.chain();
+  for(const p of ch){const rise=p.detRaw&&!p.trkPrev;p.trkPrev=p.detRaw;
+   if(p.detRaw){const own=this.list.find(t=>t.rank===p.rank&&now-t.lastT<2);if(own){own.lastT=now;own.cat=this.cat(p)}}
+   if(!rise)continue;
+   const vOf=t=>Math.abs(p.s-ch[t.rank].s)/Math.max(.05,now-t.riseT);
+   let t=this.list.filter(t=>Math.abs(t.rank-p.rank)===1&&now-t.lastT<this.win&&(t.dir===0||t.dir===Math.sign(p.rank-t.rank))&&vOf(t)>=.4&&vOf(t)<=22).sort((a,b)=>b.lastT-a.lastT)[0];
+   if(t){const prev=ch[t.rank],dir=Math.sign(p.rank-t.rank),vn=vOf(t);t.v=t.v?(t.v+vn)/2:vn;t.dir=dir;t.rank=p.rank;t.lastT=now;t.riseT=now;t.cat=this.cat(p);t.hops++;
+    if(st.ctrl==='adaptive'&&st.wakeMode==='follow'&&ON_H&&!prev.detRaw)prev.until=Math.min(prev.until,now+st.tail);
+    for(let k=1;k<=st.wake;k++){const b=ch[p.rank-dir*k-(k>1?0:0)];if(b&&b!==prev&&!b.detRaw&&k>1)b.until=Math.min(b.until,now+st.tail)}}
+   else this.list.push({id:++this.seq,rank:p.rank,dir:0,v:null,lastT:now,riseT:now,firstT:now,cat:this.cat(p),hops:0})}
+  this.list=this.list.filter(t=>now-t.lastT<this.win&&!(t.dir!==0&&(t.rank+t.dir<0||t.rank+t.dir>=ch.length)&&now-t.lastT>st.hold+2))},
+ reset(){this.list=[];this.seq=0}};
+/* ===== HarbourEnergyMonitor: configured lamp rating × simulated output, plus 1.5 W standby per smart pole ===== */
+const HEM={live:0,base:0,installed:()=>HZR.list().length*st.watt,
+ calc(){let a=0,b=0;if(ON_H)for(const p of HZR.list()){a+=st.watt*p.level+STB;b+=st.watt}this.live=a;this.base=b}};
+const WARM=new THREE.Color(1,.8,.52);let liveA=0,liveB=0,liveC=0,lampsOn=0,avgLvl=0;
+function updateLights(dt,dtH,h){LUX=ambient();ON_G=genOn(h);ON_H=harbourOn(h,LUX,dtH*3600);ON=ON_G||ON_H;const on=ON_G;
+ if(lastOn===false&&on){for(const p of poles)p.level=targetFor(p,h);lastNights.unshift({...night});lastNights.length=Math.min(lastNights.length,5);night=newNight();night.startedAtOn=true;sampleT=-1}
+ if(lastOn===true&&!on){night.complete=night.startedAtOn;night.label='last night'}
+ lastOn=on;liveA=liveB=liveC=0;lampsOn=0;let sum=0;const cw=fv('convW');
+ scanPIR(all());TRK.step();for(const p of HZR.list())if(p.sec)HLC.motion(p);
+ for(const p of poles){const tgt=targetFor(p,h),pon=p.smart?ON_H:ON_G;p.level+=clamp(tgt-p.level,-.45*dt,2.4*dt);if(!pon&&p.level<.02)p.level=0;
+  p.det=p.smart&&HLC.state(p)==='Motion';
+  if(pon){lampsOn++;const pa=st.watt*p.level+(p.smart?STB:0);liveA+=pa;liveB+=st.watt;if(cw)liveC+=cw;sum+=p.level;
+   if(dtH>0){p.Ea+=pa*dtH;p.Eb+=st.watt*dtH;if(p.smart){night.Ha+=pa*dtH/1000;night.Hb+=st.watt*dtH/1000}}}}
+ HEM.calc();
+ if((ON_G||ON_H)&&dtH>0){night.Ea+=liveA*dtH/1000;night.Eb+=liveB*dtH/1000;night.Ec+=liveC*dtH/1000;night.mode=st.ctrl}
+ avgLvl=lampsOn?sum/lampsOn:0;
+ if(on&&dtH>0){const m=((h-17.75+24)%24)*60;if(m-sampleT>=4||sampleT<0){night.samples.push([m,liveA,liveB]);sampleT=m}}}
+let lateClock=0;
+function checkLate(dt){lateClock+=dt;if(lateClock<.2)return;lateClock=0;if(!ON_H||st.ctrl!=='adaptive')return;
+ for(const a of all()){let best=null,bd=81;for(const p of HZR.list()){const dx=a.x-p.bulb[0],dz=a.z-p.bulb[1],d=dx*dx+dz*dz;if(d<bd){bd=d;best=p}}
+  if(best&&best.level<.7&&a.late!==best.id){night.late++;a.late=best.id}else if(best&&best.level>=.7)a.late=best.id}}
+const trkArrows=[...Array(8)].map(()=>{const m=new THREE.Mesh(new THREE.ConeGeometry(1.1,3.2,3).rotateZ(-Math.PI/2).rotateX(Math.PI/2),new THREE.MeshBasicMaterial({color:0x5ee6c3,toneMapped:false,transparent:true,opacity:.85,depthWrite:false}));m.visible=false;scene.add(m);return m});
+function drawTracks(){const ch=TRK.chain();trkArrows.forEach((m,i)=>{const t=TRK.list[i];if(!t||!st.rings||!ch[t.rank]){m.visible=false;return}const p=ch[t.rank],a=irPos(p.s-1.5),b=irPos(p.s+1.5),dx=b[0]-a[0],dz=b[1]-a[1],L=Math.hypot(dx,dz)||1,d=t.dir||1;
+ m.visible=true;m.position.set(p.s!=null?(a[0]+b[0])/2:p.base[0],.5,(a[1]+b[1])/2);m.rotation.y=Math.atan2(-dz*d,dx*d);m.scale.setScalar(t.dir?1:.6);m.material.opacity=t.dir?.85:.45})}
+function drawLamps(){drawTracks();const g=glowG.attributes.color.array;
+ for(let i=0;i<poles.length;i++){const p=poles[i],l=p.level;
+  if(l>0)bulbM.setColorAt(i,_c.copy(WARM).multiplyScalar(.5+l*1.3));else bulbM.setColorAt(i,_c.setRGB(.22,.23,.24));
+  if(p.smart){if(l>0)p.bulbMat.color.copy(WARM).multiplyScalar(.5+l*1.3);else p.bulbMat.color.setRGB(.22,.23,.24);
+   p.domes.forEach((m,k)=>m.material.emissive.setRGB(...(p.sec>>k&1?[.25,1.1,.8]:[0,0,0])));
+   p.fans.forEach((f,k)=>{f.visible=st.rings;const on=p.sec>>k&1;f.material.color.setRGB(...(on?[.37,.9,.76]:p.det?[.15,.45,.4]:[.1,.32,.3]));f.material.opacity=on?.42:.14})}
+  const r=(p.smart?10.5:p.main?15:12.5)*(.75+l*.35);setM(poolM,i,p.bulb[0],.42,p.bulb[1],0,r*2,1,r*2);poolM.setColorAt(i,_c.copy(WARM).multiplyScalar(l*l*(.2+NF*.5)));
+  if(st.ctrl==='ir'&&p.grp>=0&&ON_H){setM(ringM,i,p.base[0],.45,p.base[1],0,4,1,4);ringM.setColorAt(i,IRS[st.irsc][p.grp]>.9?_c.setRGB(.37,.9,.76):_c.setRGB(.1,.25,.25))}
+  else setM(ringM,i,0,-50,0,0,.001,1,.001);
+  const k=l*l*(.35+NF*.75);g[i*3]=WARM.r*k;g[i*3+1]=WARM.g*k;g[i*3+2]=WARM.b*k}
+ bulbM.instanceColor.needsUpdate=poolM.instanceColor.needsUpdate=ringM.instanceColor.needsUpdate=true;poolM.instanceMatrix.needsUpdate=ringM.instanceMatrix.needsUpdate=true;glowG.attributes.color.needsUpdate=true}
+let plT=0,plFade=0;function assignPL(dt){const cd=camera.position.distanceTo(controls.target);plFade=1-smooth(45,90,sat.on?1e9:cd);plT+=dt;if(plT<.25)return;plT=0;for(const p of poles)p.hasPL=false;if(plFade<=0){plights.forEach(L=>L.userData.p=null);return}const t=controls.target,lit=poles.filter(p=>p.level>0).map(p=>[p,(p.bulb[0]-t.x)**2+(p.bulb[1]-t.z)**2]).sort((a,b)=>a[1]-b[1]);
+ plights.forEach((L,i)=>{const e=lit[i];if(e){L.position.set(e[0].bulb[0],e[0].bulbY-.6,e[0].bulb[1]);L.userData.p=e[0]}else L.userData.p=null})}
+
+/* ---------- standalone PV energy flow (simplified, not the fuzzy-PID EMS) ---------- */
+const pv={ok:false,E:null,G:0,Ppv:0,load:0,ch:0,dis:0,sur:0,pump:0,curt:0,def:0,tot:{pv:0,ch:0,dis:0,pump:0,def:0}};
+const pvReady=()=>['pvKwp','gPeak','batKwh','dod','invEff'].every(k=>fv(k)!=null);
+function pvStep(dtH){pv.ok=st.supply==='pv'&&pvReady();if(!pv.ok)return;
+ const cap=fv('batKwh')*1000,emin=cap*(1-fv('dod'));if(pv.E==null)pv.E=cap*.5;
+ pv.G=fv('gPeak')*Math.pow(Math.max(0,sunDir.y),1.2);pv.Ppv=fv('pvKwp')*pv.G;pv.load=HEM.live/(fv('invEff')/100);
+ const net=pv.Ppv-pv.load;pv.ch=pv.dis=pv.sur=pv.pump=pv.curt=pv.def=0;
+ if(net>=0){const room=Math.max(0,cap-pv.E);pv.ch=dtH>0?Math.min(net,room/dtH):(room>1?net:0);pv.sur=net-pv.ch;let s=pv.sur;const pw=fv('pumpW');if(pw!=null&&s>=pw){pv.pump=pw;s-=pw}pv.curt=s}
+ else{const av=Math.max(0,pv.E-emin);pv.dis=dtH>0?Math.min(-net,av/dtH):(av>1?-net:0);pv.def=-net-pv.dis}
+ if(dtH>0){pv.E=clamp(pv.E+(pv.ch-pv.dis)*dtH,0,cap);pv.tot.pv+=pv.Ppv*dtH/1000;pv.tot.ch+=pv.ch*dtH/1000;pv.tot.dis+=pv.dis*dtH/1000;pv.tot.pump+=pv.pump*dtH/1000;pv.tot.def+=pv.def*dtH/1000}}
+
+/* ---------- agents -> instances ---------- */
+function drawAgents(){const lightsK=ON||NF>.3?1:.25;let bi=0;
+ for(const kind of ['car','moto','cyc']){const g=G[kind],arr=A[kind];arr.forEach((a,i)=>{setM(g.paint,i,a.x,.32,a.z,a.yaw);setM(g.fix,i,a.x,.32,a.z,a.yaw);setM(g.lt,i,a.x,.32,a.z,a.yaw);g.paint.setColorAt(i,a.col);
+  if(lightsK>.5&&bi<CAP.car+CAP.moto+CAP.cyc){const f=kind==='car'?7:5,c=Math.cos(a.yaw),s=-Math.sin(a.yaw);setM(beams,bi++,a.x+c*f,.44,a.z+s*f,a.yaw,kind==='car'?10:7,1,kind==='car'?5:3)}});
+  g.paint.count=g.fix.count=g.lt.count=arr.length;g.paint.instanceMatrix.needsUpdate=g.fix.instanceMatrix.needsUpdate=g.lt.instanceMatrix.needsUpdate=true;if(g.paint.instanceColor)g.paint.instanceColor.needsUpdate=true;g.lt.material.color.setScalar(lightsK)}
+ beams.count=bi;beams.instanceMatrix.needsUpdate=true;beamMat.color.setRGB(.55,.48,.36).multiplyScalar(NF);
+ const g=G.ped;A.ped.forEach((a,i)=>{const amp=a.run?.85:.42,sw=Math.sin(a.ph)*amp,bob=Math.abs(Math.cos(a.ph))*(a.run?.07:.03);
+  _p.set(a.x,.32+bob,a.z);_q.setFromAxisAngle(_Y,a.yaw);if(a.run)_q.multiply(_q2.setFromAxisAngle(_Z,-.14));_m.compose(_p,_q,_s.set(1,1,1));
+  g.paint.setMatrixAt(i,_m);g.fix.setMatrixAt(i,_m);g.paint.setColorAt(i,a.col);
+  const L=(mesh,x,y,z,ang)=>{_m2.makeRotationZ(ang);_m2.setPosition(x,y,z);mesh.setMatrixAt(i,_m2.premultiply(_m))};
+  L(legL,0,.9,.1,sw);L(legR,0,.9,-.1,-sw);L(armL,0,1.44,.25,-sw*.9-(a.run?.5:0));L(armR,0,1.44,-.25,sw*.9-(a.run?.5:0))});
+ for(const m of [g.paint,g.fix,legL,legR,armL,armR]){m.count=A.ped.length;m.instanceMatrix.needsUpdate=true}if(g.paint.instanceColor)g.paint.instanceColor.needsUpdate=true}
+
+/* ---------- spawning ---------- */
+let spT=0;function manage(dt,h){spT+=dt;if(spT<.4)return;spT=0;
+ const tgt={car:MAXN.car*prof(PROF.veh,h),moto:MAXN.moto*prof(PROF.veh,h),cyc:MAXN.cyc*prof(PROF.ped,h),walk:MAXN.walk*prof(PROF.ped,h),run:MAXN.run*prof(PROF.run,h)};
+ for(const k in tgt){const ped=k==='walk'||k==='run',want=Math.round(tgt[k]*st.dens),list=ped?A.ped.filter(a=>a.kind===k):A[k],live=list.filter(a=>!a.rm);
+  if(live.length<want){if((ped?A.ped.length:list.length)<(ped?CAP.ped:CAP[k])){spawn(k);if(want-live.length>4)spawn(k)}}
+  else if(live.length>want)for(let i=0;i<live.length-want&&i<2;i++)live[Math.floor(rnd()*live.length)].rm=true}}
+
+/* ---------- camera: tour, street level, rotate, fly ---------- */
+const CEN=new THREE.Vector3(0,0,-40),aspK=()=>innerWidth<innerHeight?1.55:1,_sph=new THREE.Spherical();
+const tour={on:false,t:0};
+function setTour(on){if(on&&sat.on)setSat(false);tour.on=on;controls.autoRotate=on;controls.autoRotateSpeed=.55;if(on){tween=null;follow=null;updFollowBtn();controls.maxPolarAngle=Math.PI*.46;controls.minDistance=10}$('#ctour').classList.toggle('on',on);$('#vtour').classList.toggle('on',on)}
+function tweenTo(tT,tP){if(sat.on)setSat(false);setTour(false);follow=null;updFollowBtn();tween={t:0,fT:controls.target.clone(),fP:camera.position.clone(),tT,tP}}
+function flyTo(p,dist){if(sat.on){follow=null;const tT=new THREE.Vector3(p[0],0,p[1]);tween={t:0,fT:controls.target.clone(),fP:camera.position.clone(),tT,tP:tT.clone().add(new THREE.Vector3(0,Math.max(250,dist*2.8*aspK()),.01))};return}controls.maxPolarAngle=Math.PI*.46;controls.minDistance=10;const dir=camera.position.clone().sub(controls.target).normalize();if(dir.y<.45){dir.y=.55;dir.normalize()}
+ const tT=new THREE.Vector3(p[0],0,p[1]);tweenTo(tT,tT.clone().add(dir.multiplyScalar(dist*aspK())))}
+const sat={on:false,day:true,fov:18,fog:null};
+const satDist=()=>Math.max(640,430/camera.aspect)/Math.tan(sat.fov*Math.PI/360);
+function setSat(on){if(on===sat.on)return;sat.on=on;$('#csat').classList.toggle('on',on);$('#vsat').classList.toggle('on',on);$('#satui').style.display=on?'flex':'none';
+ if(on){setTour(false);follow=null;updFollowBtn();$('#cstreet').classList.remove('on');sat.fog=[scene.fog.near,scene.fog.far];scene.fog.near=1e5;scene.fog.far=2e5;ocean.material.normalScale.set(.12,.12);camera.fov=sat.fov;camera.updateProjectionMatrix();
+  controls.enableRotate=false;controls.minPolarAngle=0;controls.maxPolarAngle=1e-4;controls.minDistance=60;controls.maxDistance=12000;
+  tween={t:0,fT:controls.target.clone(),fP:camera.position.clone(),tT:CEN.clone(),tP:CEN.clone().add(new THREE.Vector3(0,satDist(),.01))};
+  hint('Satellite view: north up · drag to pan · '+(isTouch?'pinch':'scroll')+' to zoom. Daylight imagery is view-only; the simulation keeps its own time.')}
+ else{[scene.fog.near,scene.fog.far]=sat.fog;ocean.material.normalScale.set(.6,.6);camera.fov=48;camera.updateProjectionMatrix();controls.enableRotate=true;controls.maxPolarAngle=Math.PI*.46;controls.minDistance=10;controls.maxDistance=2600;overview()}}
+function satUI(){if(!sat.on)return;const d=camera.position.distanceTo(controls.target),mpp=2*d*Math.tan(sat.fov*Math.PI/360)/innerHeight;let L=50;for(const c of [20,50,100,200,500,1000,2000])if(c/mpp<=150)L=c;
+ $('#sbar').style.width=(L/mpp).toFixed(0)+'px';$('#stxt').textContent=L>=1000?L/1000+' km':L+' m';$('#satlab').textContent=sat.day?'sim '+$('#clock').textContent:''}
+function overview(){controls.maxPolarAngle=Math.PI*.46;controls.minDistance=10;const tP=CEN.clone().add(new THREE.Vector3(.55,.62,.55).normalize().multiplyScalar(1350*aspK()));tweenTo(CEN.clone(),tP)}
+function street(){const a=N[nk['0,-1']].p,b=N[nk['0,0']].p,L=Math.hypot(b[0]-a[0],b[1]-a[1]),d=[(b[0]-a[0])/L,(b[1]-a[1])/L],l=left(d);
+ controls.minDistance=3;controls.maxPolarAngle=Math.PI*.497;
+ tweenTo(new THREE.Vector3(b[0]-d[0]*12,1.6,b[1]-d[1]*12),new THREE.Vector3(a[0]+d[0]*14-l[0]*6.2,1.75,a[1]+d[1]*14-l[1]*6.2));$('#cstreet').classList.add('on')}
+function rotateBy(a){if(sat.on)return hint('Rotation is locked north-up in satellite view');const off=camera.position.clone().sub(controls.target).applyAxisAngle(_Y,a);tweenTo(controls.target.clone(),controls.target.clone().add(off))}
+function zoomBy(k){setTour(false);tween=null;const off=camera.position.clone().sub(controls.target),d=clamp(off.length()*k,controls.minDistance,controls.maxDistance);camera.position.copy(controls.target).add(off.setLength(d))}
+function tourStep(dt){tour.t+=dt;controls.target.lerp(CEN,.02);const off=camera.position.clone().sub(controls.target);_sph.setFromVector3(off);
+ _sph.radius=lerp(_sph.radius,aspK()*(720+430*Math.sin(tour.t*.2)),.02);_sph.phi=lerp(_sph.phi,Math.PI*lerp(.2,.4,(Math.sin(tour.t*.13)+1)/2),.02);off.setFromSpherical(_sph);camera.position.copy(controls.target).add(off)}
+controls.addEventListener('start',()=>{tween=null;if(tour.on)setTour(false);$('#cstreet').classList.remove('on')});
+
+/* labels */
+const PLACES=[['Whole island',[0,-40],1350],['Village centre',gp(1,2),340],['Main junction (signals)',N[nk['0,0']].p,110],['North junction (signals)',(N[nk['0,2']]||N[nk['0,0']]).p,110],['Harbour smart poles',(()=>{const sm=poles.filter(p=>p.smart);return sm.length?[sm.reduce((a,p)=>a+p.base[0],0)/sm.length,sm.reduce((a,p)=>a+p.base[1],0)/sm.length]:HARB})(),95],['Harbour',HARB,260],['Thihthi Café',CAFE,95],['Mosque',MOSQ,130],['Football ground',FIELD.p,190],['Beach',BEACH,170],['Angolhitheem Hill',HILL,170],['South forest',wp(440,780),420]];
+$('#plist').innerHTML=PLACES.map((p,i)=>`<button class="chip" data-i="${i}">${p[0]}</button>`).join('');
+const LBL=[['Harbour',HARB],['Thihthi Café',CAFE],['Mosque',MOSQ],['Football ground',FIELD.p],['Beach',BEACH],['Angolhitheem Hill',HILL],['Signals',N[nk['0,0']]?.p,'sig'],['Signals',N[nk['0,2']]?.p,'sig'],['Harbour smart zone',(()=>{const sm=HZR.list();return sm.length?[sm.reduce((a,p)=>a+p.base[0],0)/sm.length,sm.reduce((a,p)=>a+p.base[1],0)/sm.length]:HARB})(),'ir2']].filter(l=>l[1]);
+const lblBox=$('#labels');const mkLbl=(t,p,c)=>{const d=document.createElement('div');d.className='lbl'+(c?' '+c:'');d.textContent=t;lblBox.appendChild(d);d.onclick=()=>flyTo(p,c==='sig'?110:150);return{p,el:d,c}};
+let lbls=LBL.map(l=>mkLbl(l[0],l[1],l[2]));
+let irL=[];function irLabels(){irL.forEach(l=>l.el.remove());irL=[0,1,2].map(g=>{const ps=irSel.filter(p=>p.grp===g);if(!ps.length)return null;const m=ps[Math.floor(ps.length/2)].base;return mkLbl('Group '+'ABC'[g],m,'ir')}).filter(Boolean)}
+irLabels();
+const _v=new THREE.Vector3();
+function updLabels(){const dist=camera.position.distanceTo(controls.target),low=camera.position.y<18;for(const l of lbls.concat(irL)){if(l.c==='ir'&&st.ctrl!=='ir'){l.el.style.display='none';continue}
+ _v.set(l.p[0],9,l.p[1]).project(camera);const vis=_v.z<1&&Math.abs(_v.x)<1.05&&Math.abs(_v.y)<1.05&&dist<1900&&(!low||l.c==='ir');l.el.style.display=vis?'block':'none';
+ if(vis){l.el.style.left=((_v.x+1)/2*innerWidth)+'px';l.el.style.top=((1-_v.y)/2*innerHeight)+'px';if(l.c==='ir'){const g='ABC'.indexOf(l.el.textContent.slice(6,7));l.el.textContent=`Group ${'ABC'[g]} · ${Math.round(IRS[st.irsc][g]*100)} %`}}}}
+
+/* input: tap lamp or vehicle */
+let down=null;canvas.addEventListener('pointerdown',e=>{down={x:e.clientX,y:e.clientY,t:performance.now()}});
+canvas.addEventListener('pointermove',e=>{if(down&&follow&&Math.hypot(e.clientX-down.x,e.clientY-down.y)>8){follow=null;updFollowBtn()}});
+canvas.addEventListener('pointerup',e=>{if(!down)return;const moved=Math.hypot(e.clientX-down.x,e.clientY-down.y),dt=performance.now()-down.t;down=null;if(moved>7||dt>400)return;pick(e.clientX,e.clientY)});
+function scr(x,y,z){_v.set(x,y,z).project(camera);return _v.z>1?null:[(_v.x+1)/2*innerWidth,(1-_v.y)/2*innerHeight]}
+let sel=null;function pick(x,y){let best=null,bd=isTouch?34:26;
+ for(const p of poles){for(const yy of [p.bulbY-.2,3.5,1]){const s=scr(p.base[0],yy,p.base[1]);if(!s)continue;const d=Math.hypot(s[0]-x,s[1]-y);if(d<bd){bd=d;best={pole:p}}}}
+ for(const a of all()){const s=scr(a.x,1,a.z);if(!s)continue;const d=Math.hypot(s[0]-x,s[1]-y);if(d<bd){bd=d;best={ag:a}}}
+ if(!best){closeCard();return}
+ if(best.ag){setTour(false);follow=best.ag;updFollowBtn();closeCard();return}
+ sel=best.pole;selRing.visible=true;selRing.position.set(sel.base[0],.5,sel.base[1]);$('#card').classList.add('on');updCard();drawStruct()}
+function closeCard(){$('#card').classList.remove('on')}
+$('#cclose').onclick=closeCard;
+$('#cinspect').onclick=()=>{showTab('struct');if(innerWidth<=820)$('#panel').classList.add('open');closeCard()};
+const lampName=p=>`L-${String(p.id+1).padStart(3,'0')}`;
+function lampState(p){if(!p.smart)return ON_G?'Standard fixed lamp, 100 %':'Off (clock schedule)';return HLC.state(p)+(p.detRaw?' · PIR detecting':'');if(!ON)return'Off';if(st.ctrl==='conv')return'Fixed at 100 %';if(st.ctrl==='uganda')return'Research schedule';if(st.ctrl==='ir')return p.grp>=0?`IR demo group ${'ABC'[p.grp]}`:'Outside demo, 100 %';return 'x'}
+function updCard(){if(!sel||!$('#card').classList.contains('on'))return;const e=E[sel.e];$('#ctitle').textContent=`${sel.smart?'Smart pole':'Lamp'} ${lampName(sel)} · ${e.name}`;
+ const sv=sel.Eb>0?Math.round((1-sel.Ea/sel.Eb)*100):0;
+ $('#cbody').innerHTML=`<div class="row"><span>State</span><b>${lampState(sel)}</b><span>Output</span><b class="mono">${Math.round(sel.level*100)} %</b><span>Power now <span class="tg sim">Sim</span></span><b class="mono">${ON?(st.watt*sel.level).toFixed(1):'0.0'} W</b><span>Detections (total)</span><b class="mono">${sel.cnt}</b><span>Energy, run / 100 %</span><b class="mono">${sel.Ea.toFixed(0)} / ${sel.Eb.toFixed(0)} Wh</b><span>Saving on this lamp</span><b class="mono" style="color:var(--mint)">${sv} %</b>${sel.smart?`<span>PIR S1–S6 (S1 = 0°, road side)</span><b class="mono">${[0,1,2,3,4,5].map(k=>`<span style="color:${sel.sec>>k&1?'var(--mint)':'#56706c'}">${k+1}</span>`).join(' ')}</b><span>Classification</span><b class="mono" style="font-size:11px">${sel.zone} · ${sel.lightingType}</b>`:`<span>Classification</span><b class="mono" style="font-size:11px">${sel.zone} · ${sel.lightingType}</b>`}</div>`}
+$('#zin').onclick=()=>zoomBy(.65);$('#zout').onclick=()=>zoomBy(1.5);$('#crotl').onclick=()=>rotateBy(Math.PI/6);$('#crotr').onclick=()=>rotateBy(-Math.PI/6);
+$('#csat').onclick=$('#vsat').onclick=()=>setSat(!sat.on);$('#satday').onclick=e=>{sat.day=!sat.day;e.currentTarget.classList.toggle('on',sat.day)};
+$('#ctour').onclick=$('#vtour').onclick=()=>setTour(!tour.on);$('#cstreet').onclick=$('#vstreet').onclick=street;$('#vover').onclick=overview;
+const hint=t=>{$('#hint').textContent=t;$('#hint').style.opacity=1;clearTimeout(hint.t);hint.t=setTimeout(()=>$('#hint').style.opacity=0,7000)};
+hint('Auto tour running · '+(isTouch?'touch the island to take control':'drag to take control')+' · ⟳ restarts it');
+
+/* ---------- UI wiring ---------- */
+function showTab(t){$('#tabs').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.t===t));document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==='p-'+t));uiT=1;redrawCharts()}
+const segs=(id,fn)=>$(id).querySelectorAll('button').forEach(b=>b.onclick=()=>{$(id).querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));fn(b.dataset.v)});
+const setSub=(on,off)=>{$(on).className='sub-on';(Array.isArray(off)?off:[off]).forEach(o=>$(o).className='sub-off')};
+segs('#spd',v=>{st.speed=+v;$('#spdc').textContent=v+'×';if(+v>=240)hint('Traffic, sensors, lamp timers and energy all run on the same clock. At '+v+'× a 6 s lamp hold lasts milliseconds on screen; use 1× or 60× to watch responses.')});
+$('#spdc').onclick=()=>{const L=[1,60,240,900],v=L[(L.indexOf(st.speed)+1)%4];st.speed=v;$('#spdc').textContent=v+'×';$('#spd').querySelectorAll('button').forEach(x=>x.classList.toggle('on',+x.dataset.v===v))};
+segs('#ctrl',v=>{st.ctrl=v;['adaptive','uganda','ir'].forEach(k=>$('#m-'+k).className=k===v?'sub-on':'sub-off');hState=null;if(v==='ir')flyTo(hzC(),110);$('#trow').children[1].textContent=v==='uganda'?'06:00':'05:45';$('#trow').children[3].textContent=v==='uganda'?'18:00':'17:45'});
+segs('#wake',v=>{st.wake=+v;setNeighbours(+v)});segs('#irsc',v=>{st.irsc=+v});
+segs('#swm',v=>{st.sw=v;hState=null;$('#ldrbox').className=v==='ldr'?'sub-on':'sub-off';$('#stab').className=v==='clock'?'sub-off':'sub-on'});
+segs('#amb',v=>{st.amb=v;$('#ambman').className=v==='manual'?'sub-on':'sub-off'});
+segs('#diff',v=>st.diff=v);segs('#supply',v=>{st.supply=v;if(v==='pv'&&!pvReady())hint('Standalone PV needs island inputs: Solar › Island inputs, or Fill illustrative values')});
+segs('#eview',v=>{v==='isl'?setSub('#e-isl','#e-res'):setSub('#e-res','#e-isl');redrawCharts()});
+segs('#sview',v=>{v==='isl'?setSub('#s-isl','#s-res'):setSub('#s-res','#s-isl');redrawCharts()});
+segs('#anch',v=>{st.anch=+v;drawStruct()});segs('#stif',v=>{st.stif=+v;drawStruct()});
+const rng=(id,out,fn,fmt)=>{const el=$(id),u=()=>{fn(+el.value);$(out).textContent=fmt(+el.value)};el.oninput=u;u()};
+rng('#pir','#vpir',v=>{st.sensR=v;setFans()},v=>v+' m');rng('#fov','#vfov',v=>{st.fov=v;setFans()},v=>v+'°');rng('#mind','#vmind',v=>{st.minD=v;setFans()},v=>v+' m');rng('#hys','#vhys',v=>st.hys=v,v=>v+' lx');rng('#dwell','#vdwell',v=>st.dwell=v,v=>v+' s');rng('#noise','#vnoise',v=>st.noise=v,v=>v+' %');rng('#dim','#vdim',v=>st.dim=v/100,v=>v+' %');rng('#hold','#vhold',v=>st.hold=v,v=>v+' s');rng('#watt','#vwatt',v=>{st.watt=v;sizing()},v=>v+' W');rng('#dens','#vdens',v=>st.dens=v/100,v=>v+' %');
+rng('#ambr','#vamb',v=>st.ambLux=Math.pow(10,-1+v/1000*6),v=>fmtLux(Math.pow(10,-1+v/1000*6)));rng('#ldr','#vldr',v=>st.ldrThr=v,v=>v+' lx');
+$('#space').oninput=e=>{$('#vspace').textContent=e.target.value+' m'};$('#space').onchange=e=>{st.spacing=+e.target.value;buildPoles(st.spacing);setNeighbours(st.wake);setFans();setupIR();irLabels();sel=null;selRing.visible=false;closeCard();sizing();drawStruct()};
+$('#rings').onclick=e=>{st.rings=!st.rings;e.currentTarget.classList.toggle('on',st.rings)};
+$('#xray').onclick=e=>{xray=st.xray=!xray;e.currentTarget.classList.toggle('on',xray);smartShaftMat.transparent=xray;smartShaftMat.opacity=xray?.22:1;smartShaftMat.depthWrite=!xray;smartShaftMat.needsUpdate=true;poles.forEach(p=>{if(p.wire)p.wire.visible=xray});if(xray)hint('X-ray on: zoom into a harbour pole to see the PIR ring wiring run to the controller box')};
+$('#detc').querySelectorAll('button').forEach(b=>b.onclick=()=>{st.det[b.dataset.v]=!st.det[b.dataset.v];b.classList.toggle('on',st.det[b.dataset.v])});
+$('#inj').onclick=()=>{const p=(sel&&sel.smart)?sel:HZR.list()[0];if(!p)return;const k=Math.floor(rnd()*6)+1;SEM.ingest({poleId:p.id,sensorId:k,category:'test',timestamp:clockStr(),active:true},{injected:true});if(!sel){sel=p;selRing.visible=true;selRing.position.set(p.base[0],.5,p.base[1])}hint(`Test event: ${lampName(p)} sensor ${k}`)};
+segs('#wmode',v=>{st.wakeMode=v});rng('#ahead','#vahead',v=>st.ahead=v,v=>String(v));rng('#tail','#vtail',v=>st.tail=v,v=>v+' s');
+$('#hfollow').onclick=()=>{if(follow){follow=null;updFollowBtn();return}const sm=HZR.list(),near=a=>{let d=1e9;for(const p of sm)d=Math.min(d,Math.hypot(a.x-p.base[0],a.z-p.base[1]));return d};
+ const c=all().filter(a=>near(a)<18).sort((a,b)=>near(a)-near(b));if(!c.length)return hint('Nobody on the harbour road right now. Try 18:00–21:00 or raise traffic density.');
+ if(sat.on)setSat(false);setTour(false);follow=c[0];const off=camera.position.clone().sub(controls.target).setLength(follow.ped?26:40);off.y=Math.max(off.y,follow.ped?12:18);controls.target.set(follow.x,0,follow.z);camera.position.copy(controls.target).add(off);controls.maxPolarAngle=Math.PI*.46;controls.minDistance=6;updFollowBtn();hint(`Following a ${CAT[follow.kind]} on the harbour road · drag to stop`)};
+$('#runt').onclick=()=>{$('#tres').className='card2';$('#tres').innerHTML=runTests().map(([n,ok,d])=>`<div class="row"><span>${ok?'<b style="color:var(--mint)">PASS</b>':'<b style="color:var(--red)">FAIL</b>'} ${n}</span><b class="mono" style="font-size:11px;font-weight:500">${d}</b></div>`).join('')};
+segs('#stview',v=>{st.stview=v;v==='har'?setSub('#st-har','#st-res'):setSub('#st-res','#st-har')});
+$('#stinsp').onclick=()=>$('#hzinsp').click();
+const hzC=()=>{const sm=poles.filter(p=>p.smart);return sm.length?[sm.reduce((a,p)=>a+p.base[0],0)/sm.length,sm.reduce((a,p)=>a+p.base[1],0)/sm.length]:HARB};
+$('#hzgo').onclick=()=>flyTo(hzC(),95);
+$('#hzinsp').onclick=()=>{const p=(sel&&sel.smart)?sel:poles.find(q=>q.smart);if(!p)return;const f=[Math.cos(p.yaw),-Math.sin(p.yaw)],l=left(f);controls.minDistance=.8;controls.maxPolarAngle=Math.PI*.497;
+ tweenTo(new THREE.Vector3(p.base[0],1.0,p.base[1]),new THREE.Vector3(p.base[0]-f[0]*1.6+l[0]*1.3,1.45,p.base[1]-f[1]*1.6+l[1]*1.3));sel=p;selRing.visible=true;selRing.position.set(p.base[0],.5,p.base[1]);drawStruct()};
+$('#qsw').onclick=()=>{try{localStorage.setItem('angq',HQ?'low':'high')}catch(e){}location.reload()};
+$('#play').onclick=()=>{st.paused=!st.paused;$('#play').setAttribute('aria-label',st.paused?'Play':'Pause');$('#play svg').innerHTML=st.paused?'<path d="M5 2l11 7-11 7z"/>':'<rect x="3" y="2" width="4" height="14" rx="1"/><rect x="11" y="2" width="4" height="14" rx="1"/>'};
+$('#reset').onclick=()=>{SEM.reset();TRK.reset();st.sec=17*3600+20*60;night=newNight();lastNights=[];lastOn=null;hState=null;detAll=0;pv.E=null;for(const k in pv.tot)pv.tot[k]=0;for(const p of poles){p.Ea=p.Eb=0;p.cnt=0}hint('Simulation reset to 17:20')};
+$('#tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>showTab(b.dataset.t));
+$('#sheethead').onclick=()=>$('#panel').classList.toggle('open');
+$('#plist').onclick=e=>{const b=e.target.closest('button');if(!b)return;const p=PLACES[+b.dataset.i];flyTo(p[1],p[2]);if(innerWidth<=820)$('#panel').classList.remove('open')};
+let jumped=false;$('#tslider').oninput=e=>{st.sec=+e.target.value*60;jumped=true};
+$('#date').onchange=e=>{st.date=e.target.value;calcDoy()};
+function updFollowBtn(){$('#follow').textContent=follow?'Stop following':'Follow a vehicle';$('#follow').classList.toggle('on',!!follow);$('#hfollow').textContent=follow?'Stop following':'Follow a harbour road user (camera)';$('#hfollow').classList.toggle('on',!!follow)}
+$('#follow').onclick=()=>{if(follow){follow=null}else{setTour(false);const c=A.car.concat(A.moto);follow=c[Math.floor(rnd()*c.length)]||null;if(follow){const off=camera.position.clone().sub(controls.target).setLength(45);off.y=Math.max(off.y,22);controls.target.set(follow.x,0,follow.z);camera.position.copy(controls.target).add(off)}}updFollowBtn()};
+
+/* island input fields */
+function renderFields(){$('#fields').innerHTML=FD.map(([k,l,s,u])=>`<div class="fld"><label for="f_${k}">${l}${u?' ('+u+')':''} <span id="t_${k}">${TAG[F[k].src]}</span>${s?`<small>${s}</small>`:''}</label><input type="number" id="f_${k}" inputmode="decimal" step="any" placeholder="Not Provided" value="${F[k].v??''}"></div>`).join('');
+ FD.forEach(([k,,,,lim])=>{$('#f_'+k).oninput=e=>{const t=e.target.value.trim(),v=+t;if(t===''){F[k].v=null;F[k].src='np'}else if(isFinite(v)&&v>=lim[0]&&v<=lim[1]){F[k].v=v;F[k].src='inp';e.target.style.borderColor=''}else{F[k].v=null;F[k].src='np';e.target.style.borderColor='var(--red)'}
+  $('#t_'+k).innerHTML=TAG[F[k].src];if(['batKwh','dod'].includes(k))pv.E=null;sizing();psoCalc()}})}
+$('#fillill').onclick=()=>{for(const k in ILL)if(F[k].src!=='inp'){F[k].v=ILL[k];F[k].src='ill'}pv.E=null;renderFields();sizing();psoCalc()};
+$('#clrin').onclick=()=>{for(const k in F){F[k].v=null;F[k].src='np'}pv.E=null;renderFields();sizing();psoCalc()};
+renderFields();
+
+/* sizing with published equations */
+function sizing(){const Nl=HZR.list().length,Pl=st.watt,T=12,pl=fv('ploss');const Ej=pl!=null?(Nl*Pl+pl)*T:null;
+ const na=fv('autonomy'),dod=fv('dod'),dt=fv('dt'),V=fv('batV');const Cah=(Ej!=null&&na!=null&&dod!=null&&dt!=null&&V!=null)?na*Ej/(dod*dt*V):null;
+ const np=TAG.np,src=k=>TAG[F[k].src];
+ $('#sizing').innerHTML=`<div class="sub">Ej = (Nlamp × Plamp + Ploss) × T</div><div class="row"><span>Nlamp, harbour smart poles <span class="tg calc">Registry</span></span><b class="mono">${Nl}</b><span>Plamp ${TAG.inp}</span><b class="mono">${Pl} W</b><span>Ploss ${src('ploss')}</span><b class="mono">${pl!=null?pl+' W':'—'}</b><span>T, night duration <span class="tg calc">Schedule</span></span><b class="mono">12 h</b><span>Ej <span class="tg calc">Calculated</span></span><b class="mono">${Ej!=null?(Ej/1000).toFixed(2)+' kWh/night':np}</b></div>
+ <div class="sub" style="margin-top:6px">C = (Na × E) / (DOD × DT × V)</div><div class="row"><span>Na ${src('autonomy')}</span><b class="mono">${na??'—'} d</b><span>DOD ${src('dod')}</span><b class="mono">${dod??'—'}</b><span>DT ${src('dt')}</span><b class="mono">${dt??'—'}</b><span>V ${src('batV')}</span><b class="mono">${V??'—'} V</b><span>C, battery capacity <span class="tg calc">Calculated</span></span><b class="mono">${Cah!=null?Cah.toFixed(0)+' Ah':np}</b>${Cah!=null?`<span>= C × V</span><b class="mono">${(Cah*V/1000).toFixed(1)} kWh</b>`:''}${Cah!=null&&fv('batKwh')!=null?`<span>Entered battery</span><b class="mono" style="color:${fv('batKwh')>=Cah*V/1000?'var(--mint)':'var(--red)'}">${fv('batKwh')} kWh</b>`:''}</div>
+ <div class="note">Units: W × h = Wh; Wh ÷ V = Ah. The research values DOD 0.8 and DT 0.8 belong to the Algerian case and are not used here unless you enter them.</div>`}
+
+/* PSO cost */
+const MON=[['January',78.45,62,48],['February',73.82,46,45],['March',68.58,35,42],['April',63.56,27,39],['May',59.80,24,37],['June',58.87,23,36],['July',61.30,25,38],['August',65.83,30,41],['September',71.05,36,44],['October',76.12,47,47],['November',80.05,62,49],['December',81.14,72,50]];
+$('#psomon').innerHTML=MON.map((m,i)=>`<option value="${i}"${i===10?' selected':''}>${m[0]}</option>`).join('');$('#psomon').onchange=psoCalc;
+function psoCalc(){const m=MON[+$('#psomon').value],cpv=fv('cpv'),cb=fv('cbat'),ci=fv('cin');const ok=cpv!=null&&cb!=null&&ci!=null;
+ $('#pso').innerHTML=`<div class="row"><span>Npv <span class="tg pub">Published</span></span><b class="mono">${m[2]}</b><span>Nbat <span class="tg pub">Published</span></span><b class="mono">${m[3]}</b><span>cpv ${TAG[F.cpv.src]}</span><b class="mono">${cpv??'—'}</b><span>cbat ${TAG[F.cbat.src]}</span><b class="mono">${cb??'—'}</b><span>Cin ${TAG[F.cin.src]}</span><b class="mono">${ci??'—'}</b><span>Total cost C <span class="tg calc">Calculated</span></span><b class="mono">${ok?(cpv*m[2]+cb*m[3]+ci).toLocaleString(undefined,{maximumFractionDigits:0})+' units':TAG.np}</b></div>`}
+
+/* energy-flow schematic */
+$('#flow').innerHTML=`<path class="fl" id="a1" d="M92 30H108"/><path class="fl" id="a2" d="M192 30H208"/><path class="fl" id="a3" d="M250 50V94"/><path class="fl" id="a4" d="M250 134V160"/><path class="fl" id="a5" d="M150 50V94"/>
+<rect x="8" y="10" width="84" height="40"/><text x="16" y="26">Solar PV array</text><text class="v" x="16" y="41" id="v1">—</text>
+<rect x="108" y="10" width="84" height="40"/><text x="116" y="26">DC–DC + MPPT</text><text class="v" x="116" y="41" id="v2">—</text>
+<rect x="208" y="10" width="86" height="40"/><text x="215" y="26">Battery + EMS</text><text class="v" x="215" y="41" id="v3">—</text>
+<rect x="108" y="94" width="84" height="40"/><text x="116" y="110">DC pump</text><text class="v" x="116" y="125" id="v5">—</text>
+<rect x="208" y="94" width="86" height="40"/><text x="215" y="110">Inverter</text><text class="v" x="215" y="125" id="v4">—</text>
+<rect x="208" y="160" width="86" height="44"/><text x="215" y="176">LED streetlights</text><text class="v" x="215" y="192" id="v6">—</text>
+<rect x="8" y="160" width="184" height="44"/><text x="16" y="176">Supply deficit</text><text class="v" x="16" y="192" id="v7">—</text>`;
+function updFlow(){const on=pv.ok,fmtW=w=>w>=1000?(w/1000).toFixed(2)+' kW':w.toFixed(0)+' W',set=(id,t)=>$('#'+id).textContent=t,cls=(id,c)=>$('#'+id).setAttribute('class','fl'+(c?' '+c:''));
+ if(!on){['v1','v2','v3','v4','v5','v7'].forEach(i=>set(i,st.supply==='pv'?'Not Provided':'—'));set('v6',fmtW(liveA)+(st.supply==='grid'?' · grid':''));['a1','a2','a3','a4','a5'].forEach(i=>cls(i,''));return}
+ const cap=fv('batKwh')*1000;set('v1',fmtW(pv.Ppv));set('v2',pv.ch>0?'→ batt '+fmtW(pv.ch):'—');set('v3',`SOC ${(pv.E/cap*100).toFixed(0)} %`);set('v4',fmtW(pv.load*(fv('invEff')/100))+` · ${fv('invEff')} %`);set('v5',pv.pump>0?'ON · '+fmtW(pv.pump):'OFF');set('v6',fmtW(liveA));set('v7',pv.def>0?fmtW(pv.def)+' unserved':'none');
+ cls('a1',pv.Ppv>1?'on':'');cls('a2',pv.ch>1?'on':'');cls('a5',pv.pump>0?'on':'');cls('a3',pv.load>1?(pv.def>0?'on bad':'on'):'');cls('a4',liveA>1?'on':'')}
+
+/* structure schematic */
+function stressCol(s){if(s==null)return'#5c6b69';const t=clamp((s-100)/150,0,1);return`hsl(${120-t*120},75%,48%)`}
+function structCase(){const a=st.anch,g=st.stif;if(a===4&&g===1)return{d:4.79,s:128.42,f:748000,k:'Four anchors · reference stiffener'};if(a===3&&g===1)return{d:8.90,s:238.8,f:18700,k:'Three anchors · reference stiffener'};if(a===4&&g===3)return{d:null,s:119.73,f:957000,k:'Four anchors · improved stiffener 3'};return{d:null,s:null,f:null,k:'Combination not in the published results'}}
+function drawStruct(){if(typeof drawHarbourBase==='function')drawHarbourBase();const c=structCase(),col=stressCol(c.s),g=st.stif,miss=st.anch===3;
+ const stf=x=>g===1?`<path d="M${x} 118L${x+(x<95?-22:22)} 118L${x} 84Z"/>`:g===2?`<path d="M${x} 118L${x+(x<95?-24:24)} 118L${x+(x<95?-24:24)} 110L${x} 80Z"/>`:`<path d="M${x} 72Q${x} 118 ${x+(x<95?-26:26)} 118L${x} 118Z"/>`;
+ const rod=(x,m)=>m?`<g stroke="#ff7a6b" stroke-dasharray="3 3" fill="none"><rect x="${x-3}" y="100" width="6" height="92"/></g><text x="${x+10}" y="150" fill="#ff7a6b" font-size="10">missing rod</text>`:`<rect x="${x-2.5}" y="100" width="5" height="92" fill="#b8bec2"/><rect x="${x-7}" y="104" width="14" height="8" fill="#d0d4d6"/><rect x="${x-9}" y="112" width="18" height="2.5" fill="#eef1f2"/>`;
+ $('#stsvg').innerHTML=`<defs><linearGradient id="sg" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="${col}"/><stop offset=".45" stop-color="${col}" stop-opacity=".25"/><stop offset="1" stop-color="#8a9096"/></linearGradient></defs>
+ <rect x="22" y="120" width="146" height="96" fill="#5f625f"/><text x="30" y="210" fill="#d6dad7" font-size="10">Concrete foundation</text><line x1="0" y1="120" x2="190" y2="120" stroke="#c9bfa0" stroke-width="2"/>
+ <rect x="83" y="6" width="24" height="112" fill="url(#sg)"/><text x="112" y="16" fill="#eaf6f3" font-size="10">Steel pole</text>
+ <g fill="${col}" opacity=".85">${stf(83)}${stf(107)}</g><text x="2" y="78" fill="#eaf6f3" font-size="10">Stiffener ${g}</text>
+ <rect x="48" y="114" width="94" height="6" fill="${col}"/><text x="118" y="108" fill="#eaf6f3" font-size="10" text-anchor="start">Base plate</text>
+ ${rod(56,false)}${rod(134,miss)}<text x="26" y="232" fill="#9ab8b2" font-size="9">Anchor rods, nuts, washers</text>
+ <g transform="translate(200,30)"><text x="0" y="-12" fill="#9ab8b2" font-size="10">Plan view</text><rect x="0" y="0" width="92" height="92" fill="none" stroke="${col}" stroke-width="3"/><circle cx="46" cy="46" r="15" fill="#8a9096"/>
+ <g stroke="${col}" stroke-width="3"><line x1="46" y1="31" x2="46" y2="4"/><line x1="46" y1="61" x2="46" y2="88"/><line x1="31" y1="46" x2="4" y2="46"/><line x1="61" y1="46" x2="88" y2="46"/></g>
+ ${[[12,12],[80,12],[12,80],[80,80]].map(([x,y],i)=>miss&&i===3?`<g stroke="#ff7a6b" stroke-width="2"><line x1="${x-6}" y1="${y-6}" x2="${x+6}" y2="${y+6}"/><line x1="${x+6}" y1="${y-6}" x2="${x-6}" y2="${y+6}"/></g>`:`<circle cx="${x}" cy="${y}" r="5" fill="#d0d4d6"/>`).join('')}
+ <text x="0" y="112" fill="#eaf6f3" font-size="10">${c.s!=null?c.s+' MPa':'No published value'}</text></g>`;
+ const f=v=>v==null?TAG.np.replace('Not Provided','Not in brief'):v;
+ $('#stkv').innerHTML=`<div style="grid-column:1/-1"><b style="font-size:14px">${c.k}</b><span>Research comparison case <span class="tg pub">Fairooz.pdf</span></span></div><div><b>${c.s!=null?c.s+' MPa':'—'}</b><span>Equivalent stress ${c.s==null?f(null):''}</span></div><div><b>${c.f!=null?c.f.toLocaleString():'—'}</b><span>Fatigue life, cycles ${c.f==null?f(null):''}</span></div><div><b>${c.d!=null?c.d+' mm':'—'}</b><span>Pole-top displacement ${c.d==null?f(null):''}</span></div><div><b>${c.f!=null?((c.f/748000-1)*100).toFixed(0)+' %':'—'}</b><span>Life vs reference <span class="tg calc">Calc</span></span></div>`;
+ $('#stpole').textContent=sel?`${lampName(sel)} · ${E[sel.e].name} (${sel.smart?'smart harbour pole, 6.0 m':'standard pole, 7.4 m'})`:'Tap a lamp post';
+ $('#stsmart').innerHTML=sel&&sel.smart?'<b>Harbour smart pole:</b> 6.0 m, S235, 4.0 mm wall, 330 × 330 mm plate, 4 bolts (your design input). The published model is a 9 m pole on a 400 × 400 × 10 mm plate, so its numbers do not transfer. Check before building: the six recessed PIR openings sit at 914 mm, close to the base where bending moment is highest; they reduce the wall section there. That section, the controller-box bracket holes and salt-spray corrosion at the harbour need a structural and durability check. <span class="tg np">Not analysed</span>':''}
+function drawHarbourBase(){const X=100,G=196,mm=.12,y=v=>G-v*mm,box=`<rect x="${X-7-14}" y="${y(770)}" width="14" height="${300*mm}" fill="#c9cdd0"/><line x1="${X-14}" y1="${y(620)-28}" x2="${X-14}" y2="${y(620)+28}" stroke="#8d9396"/>`;
+ $('#hsvg').innerHTML=`<rect x="60" y="${G+3}" width="80" height="48" fill="none" stroke="#c98c84" stroke-dasharray="4 3"/><text x="64" y="${G+46}" fill="#c98c84" font-size="9">foundation: not provided</text>
+ <line x1="10" y1="${G+3}" x2="190" y2="${G+3}" stroke="#c9bfa0" stroke-width="2"/>
+ <rect x="${X-20}" y="${G}" width="40" height="3" fill="#9aa1a6"/>
+ ${[-15,15].map(dx=>`<line x1="${X+dx}" y1="${G-6}" x2="${X+dx}" y2="${G+22}" stroke="#b8bec2" stroke-width="3"/><line x1="${X+dx}" y1="${G+22}" x2="${X+dx}" y2="${G+40}" stroke="#b8bec2" stroke-width="3" stroke-dasharray="2 2"/><rect x="${X+dx-4}" y="${G-5}" width="8" height="4" fill="#6f767b"/>`).join('')}
+ <rect x="${X-7}" y="12" width="14" height="${G-12}" fill="#b7bec3"/><path d="M${X-9} 14l4-4 4 4 4-4 4 4 4-4" stroke="#eaf6f3" fill="none"/>
+ <rect x="${X-8.5}" y="${y(914)-4.5}" width="17" height="9" fill="#c4cacd"/>${[-5,0,5].map(d=>`<circle cx="${X+d}" cy="${y(914)}" r="2" fill="${HZR.list().some(p=>p.sec)?'#5ee6c3':'#f4f6f7'}"/>`).join('')}
+ ${box}<path d="M${X-14} ${y(470)} q0 20 6 ${G-y(470)-6}" stroke="#1a1c1e" stroke-width="3" fill="none"/>
+ <line x1="${X-12}" y1="${G-2}" x2="${X+12}" y2="${G-2}" stroke="#c98c84" stroke-dasharray="2 2"/>
+ <g font-size="9.5" fill="#eaf6f3"><text x="128" y="${y(914)+3}">6 × PIR at 914 mm, every 60°</text><text x="128" y="${y(620)+3}">controller box 220 × 300 × 120</text><text x="128" y="${y(620)+15}" fill="#9ab8b2">rear side, cable to base</text><text x="128" y="${G-6}">plate 330 × 330, 4 bolts Ø28</text><text x="128" y="${G-26}" fill="#c98c84">stiffeners: not on drawing</text><text x="128" y="30">shaft Ø114 (assumed), 4 mm wall</text><text x="128" y="42" fill="#9ab8b2">continues to 6.0 m</text></g>
+ <g transform="translate(206,${G+4})"><rect x="0" y="0" width="44" height="44" fill="none" stroke="#9aa1a6" stroke-width="2"/><circle cx="22" cy="22" r="7.6" fill="#b7bec3"/>${[[5.4,5.4],[38.6,5.4],[5.4,38.6],[38.6,38.6]].map(([a,b])=>`<circle cx="${a}" cy="${b}" r="2.6" fill="#d0d4d6"/>`).join('')}<text x="50" y="26" font-size="9" fill="#9ab8b2">plan</text></g>`}
+drawStruct();drawHarbourBase();
+
+/* research benchmark (Ashraf.pdf) */
+const UGB=[['HPS baseline',169,1,63.66],['87 W LED, no dimming',87,1,32.76],['73 W LED, no dimming',73,1,27.51],['87 W LED, dimming',87,UG_FRAC,15.29],['73 W LED, dimming',73,UG_FRAC,12.89]].map(r=>[...r,86*r[1]*r[2]*12*365/1e6]);
+$('#ugbench').innerHTML=`<tr><th>System</th><th class="n">Published</th><th class="n">Recalculated</th></tr>`+UGB.map(r=>`<tr><td>${r[0]}</td><td class="n">${r[3].toFixed(2)} MWh</td><td class="n">${r[4].toFixed(2)} MWh</td></tr>`).join('');
+$('#ugbars').innerHTML=UGB.map(r=>`<div class="row" style="font-size:12px"><span>${r[0]}</span><span class="mono">${r[3].toFixed(2)}</span><div class="bar" style="grid-column:1/-1"><i style="width:${r[3]/63.66*100}%;background:${r[2]<1?'var(--mint)':'#7e8f8c'}"></i></div></div>`).join('');
+{const pub=(1-12.89/63.66)*100,rec=(1-UGB[4][4]/UGB[0][4])*100;$('#ugnote').innerHTML=`Recalculated as 86 lamps × rated power × dimming fraction × 12 h × 365 d, summing the six 2-hour periods (mean fraction ${(UG_FRAC*100).toFixed(2)} %). Saving of 73 W LED with dimming vs HPS: published ${pub.toFixed(2)} % <span class="tg pub">Ashraf.pdf</span>; from the recalculated totals ${rec.toFixed(2)} % <span class="tg calc">Calculated</span>. The published 12.89 MWh is ${(12.89-UGB[4][4]).toFixed(2)} MWh above the recalculated ${UGB[4][4].toFixed(2)} MWh. These are Ethiopian results, not island measurements.`}
+$('#ugtab').innerHTML=`<tr><th>Time</th><th class="n">Traffic</th><th class="n">LED output</th></tr>`+UG.map((r,i)=>`<tr id="ug${i}"><td class="mono">${String(r[0]).padStart(2,'0')}:00–${String(r[1]%24).padStart(2,'0')}:00</td><td class="n">${r[2]} %</td><td class="n">${r[3]*100} %</td></tr>`).join('');
+$('#irtab').innerHTML=`<tr><th>Scenario</th><th class="n">A</th><th class="n">B</th><th class="n">C</th></tr>`+IRS.map((r,i)=>`<tr id="ir${i}"><td>${IRNAMES[i]}</td>${r.map(v=>`<td class="n">${v*100} %</td>`).join('')}</tr>`).join('');
+
+/* charts */
+function canv(cv){const W=cv.clientWidth,H=cv.clientHeight;if(!W)return null;const dpr=Math.min(devicePixelRatio,2);cv.width=W*dpr;cv.height=H*dpr;const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);g.font='10px JetBrains Mono';return{g,W,H}}
+function drawChart(){const c=canv($('#chart'));if(!c)return;const{g,W,H}=c;
+ const max=Math.max(1,poles.length*st.watt*1.05),pad=[6,6,18,4],X=m=>pad[3]+m/720*(W-pad[1]-pad[3]),Y=v=>pad[0]+(1-v/max)*(H-pad[0]-pad[2]);
+ g.strokeStyle='rgba(255,255,255,.08)';g.fillStyle='#9ab8b2';g.lineWidth=1;
+ for(const [m,t] of [[15,'18:00'],[195,'21:00'],[375,'00:00'],[555,'03:00']]){g.beginPath();g.moveTo(X(m),pad[0]);g.lineTo(X(m),H-pad[2]);g.stroke();g.fillText(t,X(m)-14,H-4)}
+ const s=night.samples;if(s.length<2)return;
+ g.beginPath();s.forEach((p,i)=>i?g.lineTo(X(p[0]),Y(p[1])):g.moveTo(X(p[0]),Y(p[1])));g.lineTo(X(s.at(-1)[0]),Y(0));g.lineTo(X(s[0][0]),Y(0));g.closePath();g.fillStyle='rgba(94,230,195,.18)';g.fill();
+ g.beginPath();s.forEach((p,i)=>i?g.lineTo(X(p[0]),Y(p[1])):g.moveTo(X(p[0]),Y(p[1])));g.strokeStyle='#5ee6c3';g.lineWidth=2;g.stroke();
+ g.beginPath();s.forEach((p,i)=>i?g.lineTo(X(p[0]),Y(p[2])):g.moveTo(X(p[0]),Y(p[2])));g.strokeStyle='#8a9a97';g.setLineDash([4,4]);g.lineWidth=1.5;g.stroke();g.setLineDash([])}
+function drawMonthly(id,series,max,unit){const c=canv($(id));if(!c)return;const{g,W,H}=c,pb=16,pl=26,bw=(W-pl)/12;
+ g.fillStyle='#9ab8b2';for(let v=0;v<=max;v+=max/2){const y=4+(1-v/max)*(H-pb-4);g.fillText(String(Math.round(v)),0,y+3);g.strokeStyle='rgba(255,255,255,.07)';g.beginPath();g.moveTo(pl,y);g.lineTo(W,y);g.stroke()}
+ MON.forEach((m,i)=>{series.forEach((s,j)=>{const v=m[s.k],h=v/max*(H-pb-4),w=(bw-4)/series.length;g.fillStyle=s.c;g.fillRect(pl+i*bw+2+j*w,H-pb-h,w-1,h)});g.fillStyle='#9ab8b2';g.fillText(m[0][0],pl+i*bw+bw/2-3,H-3)})}
+function redrawCharts(){drawChart();drawMonthly('#mload',[{k:1,c:'#8fb8ff'}],90);drawMonthly('#mqty',[{k:2,c:'#8fb8ff'},{k:3,c:'#5ee6c3'}],80)}
+new ResizeObserver(redrawCharts).observe($('#body'));
+
+/* export via clipboard (downloads are blocked in this frame) */
+function showCopy(title,text){$('#tsttl').textContent=title;$('#tsta').value=text;$('#toast').style.display='block'}
+$('#tstx').onclick=()=>$('#toast').style.display='none';
+async function copyOut(title,text){try{await navigator.clipboard.writeText(text);showCopy(title+' copied to clipboard',text)}catch(e){showCopy(title+' (select and copy)',text)}}
+function csv(){const r=[['category','item','value','unit','source']],add=(...a)=>r.push(a);const h=st.sec/3600;
+ add('sim','time',$('#clock').textContent,'hh:mm','simulated');add('sim','control mode',st.ctrl,'','input');add('sim','switching',st.sw,'','input');add('sim','ambient',LUX.toFixed(2),'lx',st.amb==='manual'?'input':'illustrative model');
+ add('island','lamps configured',poles.length,'','layout');add('island','lamp rating',st.watt,'W','input');add('island','pole spacing',st.spacing,'m','input');
+ add('energy',night.label+' selected mode',night.Ea.toFixed(3),'kWh','calculated');add('energy',night.label+' LED 100%',night.Eb.toFixed(3),'kWh','calculated');add('energy',night.label+' conventional',fv('convW')?night.Ec.toFixed(3):'Not Provided','kWh',fv('convW')?'calculated':'not provided');
+ add('energy','detection events',night.det,'','simulated');add('energy','late wake-ups',night.late,'','simulated');
+ for(const s of night.samples)add('load','minutes after 17:45='+s[0].toFixed(0),s[1].toFixed(1),'W selected / '+s[2].toFixed(1)+' W 100%','simulated');
+ if(pv.ok)for(const k in pv.tot)add('pv','total '+k,pv.tot[k].toFixed(3),'kWh','calculated (simplified)');
+ UGB.forEach(u=>{add('Ashraf.pdf',u[0]+' published',u[3],'MWh/yr','published');add('Ashraf.pdf',u[0]+' recalculated',u[4].toFixed(3),'MWh/yr','calculated')});
+ return r.map(x=>x.map(v=>/[",]/.test(String(v))?`"${String(v).replace(/"/g,'""')}"`:v).join(',')).join('\n')}
+$('#cpcsv').onclick=()=>copyOut('Results CSV',csv());
+$('#cpjson').onclick=()=>copyOut('Inputs JSON',JSON.stringify({simulation:{date:st.date,controlMode:st.ctrl,switching:st.sw,ambientSource:st.amb,ambientManualLux:st.amb==='manual'?st.ambLux:null,ldrThresholdLux:st.sw==='ldr'?st.ldrThr:null,supply:st.supply},island:{lamps:poles.length,harbourSmartPoles:{count:poles.filter(p=>p.smart).length,design:{heightMm:6000,material:'S235 galvanised',wallMm:4,armMm:1500,armRadiusMm:1700,lampTiltDeg:15,basePlateMm:[330,330],anchorBolts:4,pir:{count:6,spacingDeg:60,heightMm:914,mounting:'recessed'},controllerBoxMm:[220,300,120],shaftDiameterMm:'114 (assumed)'},pirRangeM:st.sensR+' (assumption)',sequentialWakePoles:st.wake,wakePattern:st.wakeMode,lampsAhead:st.ahead,tailHoldS:st.tail,dimLevel:st.dim,returnDelayS:st.hold},otherLamps:'standard fixed 100 % on clock 17:45–05:45',registry:{zone:'HARBOUR_ROAD',lightingType:'SMART_ADAPTIVE',poleIds:HZR.list().map(p=>lampName(p))},detection:{fovDeg:st.fov+' (assumption)',minDistanceM:st.minD+' (assumption)',categories:st.det,events:SEM.log.length},switchingStabilisation:{hysteresisLux:st.hys,minDwellS:st.dwell},lampRatingW:st.watt,poleSpacingM:st.spacing,standbyPerSmartPoleW:STB,trafficDensity:st.dens,inputs:Object.fromEntries(FD.map(([k,l,,u])=>[k,{label:l,unit:u,value:F[k].v,source:F[k].v==null?'Not Provided':F[k].src==='ill'?'Illustrative':'Input'}]))},assumptions:['Lamp power proportional to commanded output','Ambient lux from an illustrative clear-sky model unless manual','PV irradiance from an illustrative clear-sky profile scaled by the peak input','Battery: no round-trip losses; initial SOC 50 %','EMS: charge battery first, then pump on surplus; fuzzy-PID not implemented','Traffic profile is a simulation assumption, not island survey data']},null,2));
+
+/* panel stats */
+let uiT=0,lastMin=-1;const pad2=n=>String(n).padStart(2,'0');
+function updUI(dt){const h=st.sec/3600,mins=Math.floor(st.sec/60)%1440;
+ if(mins!==lastMin){lastMin=mins;$('#clock').textContent=pad2(Math.floor(mins/60))+':'+pad2(mins%60);if(document.activeElement!==$('#tslider'))$('#tslider').value=mins;$('#effsp').textContent=st.speed>1&&!st.paused&&simStats.eff<st.speed*.9?`running ${Math.round(simStats.eff)}×`:'';const e=realSunY;$('#phase').textContent=e>.12?'Day':e>-.08?(h<12?'Dawn':'Dusk'):'Night'}
+ $('#lpill').classList.toggle('on',ON);const ml='harbour '+HLC.zone().toLowerCase();$('#ltxt').textContent=ON?`Lights on · ${ml}`:'Lights off';
+ uiT+=dt;if(uiT<.25)return;uiT=0;
+ const sv=night.Eb>0?Math.round((1-night.Ea/night.Eb)*100):null,kW=w=>(w/1000).toFixed(2)+' kW';
+ // lighting
+ $('#lcfg').textContent=poles.length;$('#lact').textContent=`${lampsOn} / ${poles.length-lampsOn}`;$('#lbri').textContent=Math.round(avgLvl*100)+' %';$('#llux').textContent=fmtLux(LUX);$('#lluxsrc').textContent=st.amb==='manual'?'Input':'Illustrative';$('#lluxsrc').className='tg '+(st.amb==='manual'?'inp':'ill');
+ if(st.ctrl==='uganda'){const r=ugRow(h);UG.forEach((x,i)=>$('#ug'+i).classList.toggle('hl',x===r));$('#ugtr').textContent=r?r[2]+' %':'outside 18–06';$('#ugisl').textContent=Math.round(prof(PROF.veh,h)*100)+' % of peak';$('#ugout').textContent=ON?(r?r[3]*100:100)+' %':'off';$('#ugload').textContent=kW(liveA)}
+ if(st.ctrl==='ir')IRS.forEach((x,i)=>$('#ir'+i).classList.toggle('hl',i===st.irsc));
+ // sensor
+ const thr=st.sw==='lux20'?20:st.sw==='ldr'?st.ldrThr:null;$('#sx_amb').textContent=fmtLux(LUX);$('#sx_state').textContent=(ON_H?'Harbour ON':'Harbour OFF')+(hPend!==null?` → ${hPend?'ON':'OFF'} in ${Math.max(0,st.dwell-hPendT).toFixed(0)} s`:'');
+ $('#sx_rule').textContent=thr==null?`Clock switching: ${st.ctrl==='uganda'?'18:00–06:00 (study night)':'17:45–05:45'}. Ambient light does not switch the lamps in this mode.`:`${st.sw==='lux20'?'20 lux research threshold (Basith.pdf, cited Irish reference)':'LDR threshold '+thr+' lx (your island input)'}: ON below ${Math.max(0,thr-st.hys)} lx, OFF above ${thr+st.hys} lx, otherwise keep the previous state; a change must persist ${st.dwell} s (sim time) before the harbour switches. Applies to harbour smart poles only.`;
+ const D={F1:[9,90,'F1 tape: tested 9–90 lx, max difference 4 lx vs BTS256'],F2:[0,1700,'F2 hemisphere: indoor applicability below ≈ 1,700 lx'],F3:[0,500,'F3 flat plastic: linear response below ≈ 500 lx']}[st.diff];
+ const inR=LUX>=20&&LUX<=986,inD=LUX>=D[0]&&LUX<=D[1];$('#tm_rng').innerHTML=inR?'Within':'<span style="color:var(--red)">Outside</span>';$('#tm_dif').innerHTML=inD?'Within':'<span style="color:var(--red)">Outside</span>';
+ $('#tm_read').innerHTML=inD?fmtLux(LUX)+' <span class="tg sim">Sim</span>':'Not validated';$('#tm_note').textContent=D[2]+'. '+(inD?'':'Ambient is outside this configuration’s published tested region, so no reading is claimed.');
+ // energy
+ $('#etitle').textContent=`Island-wide saving ${night.label} vs LED at 100 %`;$('#esave').textContent=sv===null?'—':sv+' %';$('#ealab').textContent={conv:'All fixed (LED 100 %)',adaptive:'Harbour smart zone',uganda:'Uganda schedule',ir:'IR demo'}[night.mode]||'Selected mode';
+ const mx=Math.max(night.Eb,night.Ec,.001);$('#ea').textContent=night.Ea.toFixed(1)+' kWh';$('#eb').textContent=night.Eb.toFixed(1)+' kWh';$('#eab').style.width=(night.Ea/mx*100)+'%';$('#ebb').style.width=(night.Eb/mx*100)+'%';
+ const cw=fv('convW');$('#ec').innerHTML=cw?night.Ec.toFixed(1)+' kWh':'<span class="tg np">Not Provided</span>';$('#ecb').style.width=cw?(night.Ec/mx*100)+'%':'0';
+ {const hs=night.Hb>0?Math.round((1-night.Ha/night.Hb)*100):null,sm=poles.filter(p=>p.smart);$('#hzn').textContent=sm.length;$('#hzE').innerHTML=`<span>Harbour poles, run</span><b class="mono">${night.Ha.toFixed(2)} kWh</b><span>Harbour poles at 100 %</span><b class="mono">${night.Hb.toFixed(2)} kWh</b><span>Harbour zone saving</span><b class="mono" style="color:var(--mint)">${hs===null?'—':hs+' %'}</b><span>Rest of island</span><b>fixed 100 %</b>`;
+ $('#hzlist').innerHTML=sm.map(p=>`<div class="row"><span>${lampName(p)} · ${HLC.state(p)} · ${Math.round(p.level*100)} %</span><b class="mono">${[0,1,2,3,4,5].map(k=>`<span style="color:${p.sec>>k&1?'var(--mint)':'#3f5552'}">${k+1}</span>`).join(' ')}</b></div>`).join('')+'<div class="note">Numbers = PIR sensors S1–S6 (S1 at 0°, road side, then every 60°).</div>'}
+ $('#kinst').textContent=kW(poles.length*st.watt);$('#kload').textContent=kW(liveA);$('#kdet').textContent=night.det;$('#klate').textContent=st.ctrl==='adaptive'?night.late:'—';
+ const yr=poles.length*st.watt*12*365/1000;$('#isann').innerHTML=`<span>LED at 100 %</span><b class="mono">${yr.toFixed(0)} kWh/yr</b><span>LED + Ashraf.pdf schedule</span><b class="mono">${(yr*UG_FRAC).toFixed(0)} kWh/yr</b><span>Conventional lamps</span><b class="mono">${cw?(poles.length*cw*12*365/1000).toFixed(0)+' kWh/yr':'<span class="tg np">Not Provided</span>'}</b>`;
+ const full=night.complete?night:lastNights.find(n=>n.complete);$('#eyear').textContent=full?`Projected per year at ${full.label==='tonight'?'tonight':'the last full night'}’s simulated pattern: ${((full.Eb-full.Ea)*365).toFixed(0)} kWh saved vs LED at 100 % (${(full.Eb*365).toFixed(0)} → ${(full.Ea*365).toFixed(0)} kWh).`:'Run a full night to project yearly savings from the simulated pattern.';
+ // solar
+ updFlow();$('#flow').style.display=st.supply==='pv'?'':'none';const cap=fv('batKwh')*1000;
+ $('#pvkv').innerHTML=st.supply==='grid'?`<div style="grid-column:1/-1"><b style="font-size:14px">Grid-supplied (as built)</b><span>The harbour smart poles are grid-powered in this project. No PV panels, batteries or pumps exist, so none are drawn or counted. The what-if option models a standalone PV supply for the harbour load only.</span></div>`:!pv.ok?`<div style="grid-column:1/-1"><b style="font-size:14px">${TAG.np}</b><span>Needs PV size, peak irradiance, battery capacity, DOD and inverter efficiency (Island inputs)</span></div>`:
+  `<div><b>${kW(pv.Ppv)}</b><span>PV array output</span></div><div><b>${(pv.E/cap*100).toFixed(0)} %</b><span>Battery SOC · ${(pv.E/1000).toFixed(1)} kWh</span></div><div><b>${pv.ch>0?'+'+kW(pv.ch):pv.dis>0?'−'+kW(pv.dis):'0.00 kW'}</b><span>${pv.ch>0?'Charging':pv.dis>0?'Discharging':'Idle'}</span></div><div><b>${kW(pv.sur)}</b><span>Available surplus</span></div><div><b>${fv('pumpW')==null?'—':pv.pump>0?'ON':'OFF'}</b><span>DC pump ${fv('pumpW')==null?TAG.np:''}</span></div><div><b>${pv.tot.def.toFixed(2)} kWh</b><span>Energy deficit (total)</span></div><div><b>${pv.tot.ch.toFixed(1)} kWh</b><span>Transferred to storage</span></div><div><b>${pv.G.toFixed(0)} W/m²</b><span>Irradiance <span class="tg ill">Illustrative</span></span></div>`;
+ $('#pvnote').textContent=st.supply==='pv'?'What-if only, for the harbour smart-pole load. Simplified energy balance: PV first charges the battery; surplus above the pump rating runs the DC pump; at night the battery feeds the inverter down to the DOD limit, and any shortfall is shown as deficit (in practice those lamps would not be served). Not an implementation of the fuzzy-PID controller.':'';
+ // traffic
+ {const sm=HZR.list(),sp=sel&&sel.smart?sel:null,hs=night.Hb>0?Math.round((1-night.Ha/night.Hb)*100):null;
+ $('#hkv').innerHTML=[[sm.length,'Harbour smart poles','Registry','calc'],[SEM.count(),'Active motion events','Sim','sim'],[fmtLux(LUX),'Ambient (virtual TEMT6000)',st.amb==='manual'?'Input':'Illustrative',st.amb==='manual'?'inp':'ill'],[HLC.zone(),'Current lighting state','',''],[sp?Math.round(sp.level*100)+' %':'—',sp?'Selected '+lampName(sp)+' brightness':'Select a harbour pole','',''],[HEM.installed().toLocaleString()+' W','Harbour installed power','Calc','calc'],[HEM.live.toFixed(0)+' W','Harbour estimated consumption','Sim','sim'],[night.Ha.toFixed(2)+' kWh','Harbour energy '+night.label,'Calc','calc'],[hs===null?'—':hs+' %','Energy reduction vs same poles at 100 %','Calc','calc']].map(([v,l,t,c])=>`<div><b>${v}</b><span>${l} ${t?`<span class="tg ${c}">${t}</span>`:''}</span></div>`).join('');
+{const ch=TRK.chain(),hd=d=>d>0?'east →':d<0?'← west':'not yet known';$('#trtab').innerHTML='<tr><th>Track</th><th>Type</th><th>Heading</th><th class="n">Speed</th><th>At</th><th>Lit ahead</th></tr>'+(TRK.list.length?TRK.list.slice().sort((a,b)=>b.lastT-a.lastT).slice(0,6).map(t=>{const p=ch[t.rank],ah=t.dir&&st.wakeMode==='follow'?[...Array(st.ahead)].map((_,k)=>ch[t.rank+t.dir*(k+1)]).filter(Boolean).map(lampName).join(', '):'both sides';return`<tr${realT-t.lastT<2?' class="hl"':''}><td class="mono">T${t.id}</td><td>${t.cat}</td><td>${hd(t.dir)}</td><td class="n">${t.v?(t.v*3.6).toFixed(1)+' km/h':'—'}</td><td class="mono">${p?lampName(p):'—'}</td><td class="mono">${ah||'—'}</td></tr>`}).join(''):'<tr><td colspan="6">No harbour road users being tracked.</td></tr>')}
+ $('#evtab').innerHTML='<tr><th>Time</th><th>Pole</th><th>S</th><th>Category</th><th>State / action</th></tr>'+(SEM.log.length?SEM.log.slice(-8).reverse().map(e=>`<tr${e.active?' class="hl"':''}><td class="mono">${e.timestamp}</td><td class="mono">${lampName(poles[e.poleId]||{id:e.poleId})}</td><td class="mono">${e.sensorId}</td><td>${e.category}</td><td>${e.active?'active · '+e.action:'ended '+e.end+' · '+e.action}</td></tr>`).join(''):'<tr><td colspan="5">No events yet.</td></tr>');}
+ $('#nveh').textContent=A.car.length+A.moto.length+A.cyc.length;$('#nped').textContent=A.ped.length;$('#ndet').textContent=detAll;$('#nact').textContent=Math.round(prof(PROF.veh,h)*100)+' %';
+ $('#ngrp').textContent=st.ctrl==='ir'&&ON_H?IRS[st.irsc].map((v,i)=>v>.9?'ABC'[i]:null).filter(Boolean).join(', ')+' at 100 %':'—';
+ $('#strip').innerHTML=`<span>${ml}</span><span>Avg <b class="mono">${Math.round(avgLvl*100)} %</b></span><span>Load <b class="mono">${kW(liveA)}</b></span><span>Saving <b class="mono">${sv===null?'—':sv+' %'}</b></span>`;
+ if($('#p-energy').classList.contains('on'))drawChart();updCard()}
+
+/* ===== HarbourLightingUI: acceptance checks ===== */
+let INIT=null,frames=0;
+function runTests(){const out=[],ok=(n,c,d)=>out.push([n,!!c,d]),sm=HZR.list(),std=poles.filter(p=>p.lightingType!=='SMART_ADAPTIVE'),angD=(a,b)=>Math.abs(Math.atan2(Math.sin(a-b),Math.cos(a-b)));
+ const onHz=poles.filter(p=>HZR.edges.has(p.e));
+ ok('Only harbour-road poles are smart',sm.length>0&&sm.length===onHz.length&&sm.every(p=>p.zone==='HARBOUR_ROAD')&&std.every(p=>p.zone==='GENERAL'&&p.lightingType==='STANDARD_FIXED'&&!p.group),`${sm.length} smart · ${std.length} standard`);
+ ok('Six PIR models per pole at 914 mm, 60° apart',sm.every(p=>p.domes.length===6&&p.domes.every((m,k)=>Math.abs(m.position.y-.914)<1e-6&&angD(Math.atan2(-m.position.z,m.position.x),k*Math.PI/3)<1e-3)),`${sm.length*6} sensors`);
+ ok('Rear controller box on every harbour pole',sm.every(p=>p.group&&p.group.children.includes(p.fx)&&p.fx.geometry===smartFixGeo),`${sm.length} boxes`);
+ const hzSame=sm.length===HZR.snap.h.length&&sm.every((p,i)=>Math.abs(p.base[0]-HZR.snap.h[i][0])<1e-3&&Math.abs(p.base[1]-HZR.snap.h[i][1])<1e-3);
+ const allSame=st.spacing!==HZR.snap.sp||poles.every((p,i)=>HZR.snap.all[i]&&Math.abs(p.base[0]-HZR.snap.all[i][0])<1e-3&&Math.abs(p.base[1]-HZR.snap.all[i][1])<1e-3);
+ ok('Streetlight positions unchanged',hzSame&&allSame,st.spacing!==HZR.snap.sp?'harbour locked; others moved by your spacing input':'all '+poles.length+' match');
+ // sandbox for 5–7
+ const sv={g:ON_G,h:ON_H,ctrl:st.ctrl,rt:realT,pp:poles.map(p=>[p.from,p.until])};ON_G=ON_H=true;st.ctrl='adaptive';poles.forEach(p=>{p.from=p.until=-99});
+ const hh=st.sec/3600,before=std.map(p=>targetFor(p,hh)),tp=sm[Math.floor(sm.length/2)];HLC.motion(tp);realT+=.35*st.wake+.05;
+ const trg=sm.filter(p=>targetFor(p,hh)===1).map(p=>p.id),nb=new Set([tp.id,...tp.snb.map(n=>n.q.id)]);
+ ok('Motion triggers only the right harbour lamps',trg.length===nb.size&&trg.every(id=>nb.has(id))&&std.every((p,i)=>targetFor(p,hh)===before[i]),`${lampName(tp)} + ${tp.snb.length} neighbours`);
+ realT+=st.hold+.36*st.wake+.1;ok('Return to standby after the hold',sm.every(p=>targetFor(p,hh)===st.dim),`hold ${st.hold} s → ${Math.round(st.dim*100)} %`);
+ let g7=true;for(const c of ['conv','adaptive','uganda','ir'])for(const w of ['clock','lux20','ldr']){st.ctrl=c;const sw=st.sw;st.sw=w;ON_G=genOn(20);if(!std.every(p=>targetFor(p,20)===1))g7=false;ON_G=genOn(12);if(!std.every(p=>targetFor(p,12)===0))g7=false;st.sw=sw}
+ ON_G=sv.g;ON_H=sv.h;st.ctrl=sv.ctrl;realT=sv.rt;poles.forEach((p,i)=>{p.from=sv.pp[i][0];p.until=sv.pp[i][1]});
+ ok('Non-harbour lamps keep fixed clock operation',g7,'12 strategy/switching combinations');
+ ok('Camera and rendering running',frames>INIT.frames&&renderer.info.render.calls>0&&controls.enabled,`${frames-INIT.frames} frames since load`);
+ let lv=0;if(ON_H)for(const p of sm)lv+=st.watt*p.level+STB;
+ ok('Power and energy consistent with inputs',HEM.installed()===sm.length*st.watt&&Math.abs(lv-HEM.live)<1e-6&&night.Ha>=0&&night.Ha<=night.Hb+sm.length*STB*24/1000+1e-9,`${sm.length} × ${st.watt} W = ${HEM.installed()} W`);
+ ok('Unrelated features unchanged',houses.length===INIT.h&&trees.length===INIT.t&&palms.length===INIT.pa&&E.length===INIT.e&&N.length===INIT.n&&boats.length===INIT.b&&all().length>0,`${houses.length} houses · ${trees.length+palms.length} trees · ${all().length} road users`);
+ return out}
+/* ---------- start ---------- */
+calcDoy();sizing();psoCalc();setFans();
+camera.position.set(700,900,900);controls.target.copy(CEN);controls.update();
+for(let i=0;i<60;i++)manage(1,st.sec/3600);
+for(const k of ['car','moto','cyc'])for(const a of A[k])a.v=a.vmax*.6;
+setTour(true);
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight,false)});
+const clock=new THREE.Clock();
+/* ===== Simulation timing: every physical process advances on the same simulated clock in fixed steps of at most 0.5 s =====
+   frame time × speed → simulated time due → split into steps ≤ STEP_MAX → traffic → sensors → lighting → energy → render once.
+   If a frame runs out of its compute budget the clock simply advances less (effective speed drops); no process is skipped. */
+const STEP_MAX=.5,simStats={steps:0,simSec:0,maxStep:0,eff:1,reqSpeed:1};let onStep=null;
+function simStep(s){realT+=s;st.sec=(st.sec+s)%86400;const h=st.sec/3600,dtH=s/3600;sunVec(h);
+ for(const n of N)if(n.sig){n.sig.t+=s;if(n.sig.t>SIGD[n.sig.ph]){n.sig.t=0;n.sig.ph=(n.sig.ph+1)%6}}
+ manage(s,h);
+ for(const k of ['car','moto','cyc'])for(const a of A[k].slice())if(!a.dead)moveVeh(a,s);for(const a of A.ped.slice())if(!a.dead)movePed(a,s);for(const k in A)A[k]=A[k].filter(a=>!a.dead);
+ updateLights(s,dtH,h);pvStep(dtH);checkLate(s);boatStep(s);
+ simStats.steps++;simStats.simSec+=s;if(s>simStats.maxStep)simStats.maxStep=s;if(onStep)onStep(s)}
+function tick(dtR){vT+=dtR;jumped=false;
+ if(!st.paused&&dtR>0){const due=dtR*st.speed,t0=performance.now();let done=0;
+  while(due-done>1e-9){const sStep=Math.min(STEP_MAX,due-done);simStep(sStep);done+=sStep;if(performance.now()-t0>st.budgetMs)break}
+  simStats.reqSpeed=st.speed;simStats.eff=simStats.eff*.85+.15*(done/dtR)}
+ const h=st.sec/3600;updateSky(h);realSunY=sunDir.y;
+ for(const hd of heads){const sg=sigOK(hd.n,hd.axis);hd.lamps.forEach((l,i)=>{const lit=(i===0&&sg===0)||(i===1&&sg===1)||(i===2&&sg===2);l.m.material.color.copy(l.c).multiplyScalar(lit?1.6:.12)})}
+ if(sat.on&&sat.day)updateSky(12.5);drawLamps();drawAgents();updDemo();assignPL(dtR);
+ for(const L of plights){const p=L.userData.p;if(p)p.hasPL=true;L.intensity=p?p.level*p.level*(110+NF*90)*(NF>.05?1:.3)*plFade:0}
+ wn.offset.x=vT*.004;wn.offset.y=vT*.0025;wn2.offset.x=-vT*.003;
+ if(follow&&!follow.dead){const dx=follow.x-controls.target.x,dz=follow.z-controls.target.z;controls.target.x+=dx;controls.target.z+=dz;camera.position.x+=dx;camera.position.z+=dz}
+ if(tween){tween.t=Math.min(1,tween.t+dtR/1.4);const k=tween.t<.5?2*tween.t*tween.t:1-(-2*tween.t+2)**2/2;controls.target.lerpVectors(tween.fT,tween.tT,k);camera.position.lerpVectors(tween.fP,tween.tP,k);if(tween.t>=1)tween=null}
+ if(tour.on)tourStep(dtR);
+ controls.update(dtR);
+ const t=controls.target;sun.position.set(t.x+sunDir.x*500,Math.max(sunDir.y,.05)*500,t.z+sunDir.z*500);sun.target.position.copy(t);
+ sky.position.copy(camera.position);stars.position.copy(camera.position);skyU.camP.value.copy(camera.position);
+ updLabels();updUI(dtR);satUI()}
+INIT={h:houses.length,t:trees.length,pa:palms.length,e:E.length,n:N.length,b:boats.length,frames:0};
+renderer.setAnimationLoop(()=>{tick(Math.min(clock.getDelta(),.05));renderer.render(scene,camera);frames++});
+$('#load').style.opacity=0;setTimeout(()=>$('#load').remove(),700);
+window.__sim={simStats,simStep,setOnStep:f=>{onStep=f},get realT(){return realT},TRK,vessels,sat,setSat,runTests,SEM,HZR,HLC,HEM,tick:(n,d)=>{for(let i=0;i<n;i++)tick(d)},st,get A(){return A},get poles(){return poles},get night(){return night},pv,F,N,E,camera,controls,setTour};
+}catch(err){showErr(err.stack||String(err))}
+}
+</script>
+</body>
+</html>
